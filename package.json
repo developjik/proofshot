@@ -43,6 +43,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "demo": "npm run build && node dist/bin/cli.js compare --base demo/before --head demo/after --routes /,/pricing --out proofshot-out",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
