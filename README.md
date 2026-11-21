@@ -22,6 +22,19 @@ issues the change introduced.
 - **A PR comment you can post as-is.** `report.md` starts with a stable marker so the workflow
   edits its previous comment instead of piling up new ones.
 
+### Why not Storybook + Chromatic?
+
+| | proofshot | Storybook + Chromatic | Code-diff review tools (hunk, crit) |
+| --- | --- | --- | --- |
+| Setup | point at two builds/URLs; routes inferred from the diff | write and maintain stories for every state | none |
+| What reviewers see | the **real app screens** for the routes the PR touched | hand-written component stories | source diff only |
+| A11y | before/after issue delta per route, no service | addon/axe, separate reporting | none |
+| Cost / account | MIT, local, no account | paid SaaS, per-snapshot billing | local |
+| Where results live | `report.md` + artifact, postable as a PR comment | hosted visual review UI | terminal / PR |
+
+The gap it fills: a PR touches a page and a stylesheet, and no story exists for that page. proofshot
+screenshots what the PR actually changed, with no story to write.
+
 ## Quick start
 
 > **Status: early MVP.** Not on npm yet, so there is no published `proofshot` binary. Run it
