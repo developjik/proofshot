@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acme Studio — pricing</title>
+    <style>
+      :root {
+        --ink: #14161a;
+        --muted: #5b6472;
+        --line: #e3e6ea;
+        --soft: #f5f7fa;
+        --accent: #1f4bd8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+        background: #fff;
+        line-height: 1.55;
+      }
+      .site-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 32px;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand { font-weight: 650; text-decoration: none; color: inherit; letter-spacing: -0.01em; }
+      nav a { margin-left: 20px; color: var(--muted); text-decoration: none; font-size: 14px; }
+      main { max-width: 960px; margin: 0 auto; padding: 56px 32px 72px; }
+      h1 { font-size: 38px; line-height: 1.15; letter-spacing: -0.03em; margin: 0 0 10px; }
+      .lede { color: var(--muted); margin: 0 0 32px; max-width: 56ch; }
+      .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .plan { border: 1px solid var(--line); border-radius: 14px; padding: 22px; background: #fff; }
+      .plan.featured { border-color: var(--accent); box-shadow: 0 1px 0 var(--accent); }
+      .plan h2 { font-size: 16px; margin: 0 0 4px; letter-spacing: -0.01em; }
+      .price { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; margin: 0 0 12px; }
+      .price span { font-size: 13px; font-weight: 500; color: var(--muted); }
+      .plan ul { list-style: none; padding: 0; margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+      .plan li { margin-bottom: 6px; }
+      .plan button {
+        width: 100%;
+        font: inherit;
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+        background: var(--soft);
+        cursor: pointer;
+      }
+      .plan.featured button { background: var(--accent); border-color: var(--accent); color: #fff; }
+      footer { border-top: 1px solid var(--line); padding: 24px 32px; color: var(--muted); font-size: 13px; }
+      footer p { margin: 0; }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">Acme Studio</a>
+      <nav aria-label="Main">
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Docs</a>
+        <a href="/changelog">Changelog</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1>Simple pricing for every stage</h1>
+      <p class="lede">Start free, upgrade when your team grows. Every plan includes accessibility checks and visual review.</p>
+
+      <div class="plans">
+        <section class="plan">
+          <h2>Starter</h2>
+          <p class="price">$0 <span>/ month</span></p>
+          <ul>
+            <li>1 project</li>
+            <li>3 reviewers</li>
+            <li>Community support</li>
+          </ul>
+          <button type="button">Start free</button>
+        </section>
+        <section class="plan featured">
+          <h2>Team</h2>
+          <p class="price">$29 <span>/ seat / month</span></p>
+          <ul>
+            <li>Unlimited projects</li>
+            <li>Before/after review</li>
+            <li>Accessibility gates</li>
+          </ul>
+          <button type="button">Start 14-day trial</button>
+        </section>
+        <section class="plan">
+          <h2>Enterprise</h2>
+          <p class="price">Custom</p>
+          <ul>
+            <li>SSO and audit log</li>
+            <li>Dedicated support</li>
+            <li>On-prem capture</li>
+          </ul>
+          <button type="button">Talk to sales</button>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <p>© 2026 Acme Studio. All rights reserved.</p>
+    </footer>
+  </body>
+</html>

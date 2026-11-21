@@ -1,0 +1,60 @@
+{
+  "name": "proofshot",
+  "version": "0.1.0",
+  "description": "Zero-config before/after screenshots, pixel diff, and accessibility deltas for pull requests — no Storybook, no Chromatic.",
+  "keywords": [
+    "visual-regression",
+    "playwright",
+    "screenshot",
+    "pixelmatch",
+    "accessibility",
+    "a11y",
+    "pull-request",
+    "code-review",
+    "ai-agents",
+    "ci"
+  ],
+  "license": "MIT",
+  "author": "Jung Ingwon (developjik)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/developjik/proofshot.git"
+  },
+  "homepage": "https://github.com/developjik/proofshot#readme",
+  "bugs": {
+    "url": "https://github.com/developjik/proofshot/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "proofshot": "dist/bin/cli.js"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "demo": "npm run build && node dist/bin/cli.js compare --base demo/before --head demo/after --routes /,/pricing --out proofshot-out",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "pixelmatch": "^5.3.0",
+    "playwright": "^1.65.1",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,237 @@
+{
+  "meta": {
+    "baseLabel": "demo/before",
+    "headLabel": "demo/after",
+    "baseSource": "demo/before",
+    "headSource": "demo/after",
+    "routes": [
+      "/",
+      "/pricing"
+    ],
+    "routesSource": "CLI --routes",
+    "viewports": [
+      "desktop"
+    ],
+    "thresholdPercent": 0.1,
+    "generatedAt": "2026-11-21T14:15:21.085Z",
+    "notes": []
+  },
+  "stats": {
+    "total": 2,
+    "changed": 1,
+    "unchanged": 1,
+    "errors": 0,
+    "a11yRegressions": 1,
+    "worstPercent": 2.318
+  },
+  "results": [
+    {
+      "route": "/",
+      "viewport": "desktop",
+      "status": "changed",
+      "diffPercent": 2.318,
+      "diffPixels": 51171,
+      "width": 1280,
+      "height": 1725,
+      "sizeMismatch": true,
+      "images": {
+        "before": "base-root-desktop.png",
+        "after": "head-root-desktop.png",
+        "diff": "root-desktop-diff.png"
+      },
+      "a11y": {
+        "before": {
+          "imagesMissingAlt": 0,
+          "buttonsWithoutName": 0,
+          "linksWithoutName": 0,
+          "inputsWithoutLabel": 0,
+          "headingOrderViolations": 0,
+          "duplicateIds": 0,
+          "landmarks": 4,
+          "consoleErrors": 0
+        },
+        "after": {
+          "imagesMissingAlt": 1,
+          "buttonsWithoutName": 1,
+          "linksWithoutName": 0,
+          "inputsWithoutLabel": 0,
+          "headingOrderViolations": 1,
+          "duplicateIds": 0,
+          "landmarks": 4,
+          "consoleErrors": 1
+        },
+        "metrics": [
+          {
+            "key": "imagesMissingAlt",
+            "before": 0,
+            "after": 1,
+            "delta": 1
+          },
+          {
+            "key": "buttonsWithoutName",
+            "before": 0,
+            "after": 1,
+            "delta": 1
+          },
+          {
+            "key": "linksWithoutName",
+            "before": 0,
+            "after": 0,
+            "delta": 0
+          },
+          {
+            "key": "inputsWithoutLabel",
+            "before": 0,
+            "after": 0,
+            "delta": 0
+          },
+          {
+            "key": "headingOrderViolations",
+            "before": 0,
+            "after": 1,
+            "delta": 1
+          },
+          {
+            "key": "duplicateIds",
+            "before": 0,
+            "after": 0,
+            "delta": 0
+          }
+        ],
+        "regressions": [
+          {
+            "rule": "img-alt",
+            "selector": "section.hero:nth-of-type(1) > div.shot-row:nth-of-type(2) > img:nth-of-type(1)",
+            "detail": "image has no alt attribute"
+          },
+          {
+            "rule": "button-name",
+            "selector": "section.hero:nth-of-type(1) > div.actions:nth-of-type(1) > button.icon-only:nth-of-type(2)",
+            "detail": "button has no accessible name"
+          },
+          {
+            "rule": "heading-order",
+            "selector": "main > section.logos:nth-of-type(2) > h3",
+            "detail": "heading jumps from h1 to h3"
+          },
+          {
+            "rule": "console-error",
+            "selector": "console",
+            "detail": "Acme Studio: GET /api/tokens returned 500"
+          }
+        ],
+        "fixes": [],
+        "consoleErrorDelta": 1,
+        "regressed": true,
+        "netIssues": 4
+      },
+      "consoleErrors": {
+        "before": 0,
+        "after": 1
+      },
+      "sizes": {
+        "before": {
+          "width": 1280,
+          "height": 1204
+        },
+        "after": {
+          "width": 1280,
+          "height": 1725
+        }
+      }
+    },
+    {
+      "route": "/pricing",
+      "viewport": "desktop",
+      "status": "unchanged",
+      "diffPercent": 0,
+      "diffPixels": 0,
+      "width": 1280,
+      "height": 800,
+      "sizeMismatch": false,
+      "images": {
+        "before": "base-pricing-desktop.png",
+        "after": "head-pricing-desktop.png"
+      },
+      "a11y": {
+        "before": {
+          "imagesMissingAlt": 0,
+          "buttonsWithoutName": 0,
+          "linksWithoutName": 0,
+          "inputsWithoutLabel": 0,
+          "headingOrderViolations": 0,
+          "duplicateIds": 0,
+          "landmarks": 4,
+          "consoleErrors": 0
+        },
+        "after": {
+          "imagesMissingAlt": 0,
+          "buttonsWithoutName": 0,
+          "linksWithoutName": 0,
+          "inputsWithoutLabel": 0,
+          "headingOrderViolations": 0,
+          "duplicateIds": 0,
+          "landmarks": 4,
+          "consoleErrors": 0
+        },
+        "metrics": [
+          {
+            "key": "imagesMissingAlt",
+            "before": 0,
+            "after": 0,
+            "delta": 0
+          },
+          {
+            "key": "buttonsWithoutName",
+            "before": 0,
+            "after": 0,
+            "delta": 0
+          },
+          {
+            "key": "linksWithoutName",
+            "before": 0,
+            "after": 0,
+            "delta": 0
+          },
+          {
+            "key": "inputsWithoutLabel",
+            "before": 0,
+            "after": 0,
+            "delta": 0
+          },
+          {
+            "key": "headingOrderViolations",
+            "before": 0,
+            "after": 0,
+            "delta": 0
+          },
+          {
+            "key": "duplicateIds",
+            "before": 0,
+            "after": 0,
+            "delta": 0
+          }
+        ],
+        "regressions": [],
+        "fixes": [],
+        "consoleErrorDelta": 0,
+        "regressed": false,
+        "netIssues": 0
+      },
+      "consoleErrors": {
+        "before": 0,
+        "after": 0
+      },
+      "sizes": {
+        "before": {
+          "width": 1280,
+          "height": 800
+        },
+        "after": {
+          "width": 1280,
+          "height": 800
+        }
+      }
+    }
+  ]
+}

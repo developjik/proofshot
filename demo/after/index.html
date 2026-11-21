@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acme Studio — design systems that ship</title>
+    <style>
+      :root {
+        --ink: #14161a;
+        --muted: #5b6472;
+        --line: #e3e6ea;
+        --bg: #fbfcfe;
+        --soft: #f5f7fa;
+        --accent: #0f8a68;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        line-height: 1.55;
+      }
+      .site-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 32px;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand { font-weight: 650; text-decoration: none; color: inherit; letter-spacing: -0.01em; }
+      nav a { margin-left: 20px; color: var(--muted); text-decoration: none; font-size: 14px; }
+      main { max-width: 960px; margin: 0 auto; padding: 56px 32px 72px; }
+      .eyebrow {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 650;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .badge {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #e6f4ef;
+        color: #0b6a50;
+        font-size: 11px;
+        font-weight: 650;
+        letter-spacing: 0.02em;
+        vertical-align: middle;
+      }
+      h1 {
+        font-size: 46px;
+        line-height: 1.08;
+        letter-spacing: -0.035em;
+        margin: 10px 0 18px;
+        max-width: 24ch;
+      }
+      .lede { font-size: 18px; color: var(--muted); max-width: 58ch; margin: 0; }
+      .actions { display: flex; gap: 12px; margin: 28px 0 24px; flex-wrap: wrap; align-items: center; }
+      button { font: inherit; }
+      .primary {
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+        border-radius: 10px;
+        padding: 13px 22px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .secondary {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 20px;
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
+        background: var(--soft);
+      }
+      .icon-only {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #fff;
+        cursor: pointer;
+      }
+      .hero-shot { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 14px; display: block; }
+      .shot-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+      .shot-row img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 12px; display: block; }
+      .features { margin-top: 56px; }
+      .features h2 { font-size: 22px; letter-spacing: -0.02em; margin: 0 0 16px; }
+      .features ul { margin: 0; padding-left: 20px; color: var(--muted); }
+      .features li { margin-bottom: 8px; }
+      .whats-new { margin-top: 44px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+      .whats-new h3 { margin: 0 0 8px; font-size: 16px; letter-spacing: -0.01em; }
+      .whats-new p { margin: 0; color: var(--muted); font-size: 15px; }
+      .logos { margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--line); }
+      .logos h3 { margin: 0 0 6px; font-size: 15px; letter-spacing: -0.01em; }
+      .logos p { margin: 0; color: var(--muted); font-size: 14px; }
+      footer { border-top: 1px solid var(--line); padding: 24px 32px; color: var(--muted); font-size: 13px; }
+      footer p { margin: 0; }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">Acme Studio</a>
+      <nav aria-label="Main">
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Docs</a>
+        <a href="/changelog">Changelog</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Design systems <span class="badge">New</span></p>
+        <h1>Ship interfaces your whole team can trust.</h1>
+        <p class="lede">
+          Acme Studio now keeps screens, tokens and flows in one reviewable place, so
+          design and engineering argue about the work instead of about stale files.
+        </p>
+        <div class="actions">
+          <button class="primary" type="button">Start free trial</button>
+          <a class="secondary" href="/pricing">See pricing</a>
+          <button class="icon-only" type="button">
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+              <path d="M9 2v14M2 9h14" stroke="#14161a" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+        <img
+          class="hero-shot"
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='960' height='420'%3E%3Crect width='960' height='420' fill='%23e7f4ef'/%3E%3Crect x='40' y='40' width='280' height='18' rx='9' fill='%23b9dfd2'/%3E%3Crect x='40' y='80' width='560' height='12' rx='6' fill='%23cfe9e0'/%3E%3Crect x='40' y='104' width='480' height='12' rx='6' fill='%23cfe9e0'/%3E%3Crect x='40' y='160' width='180' height='44' rx='10' fill='%230f8a68'/%3E%3Crect x='680' y='40' width='240' height='164' rx='12' fill='%23d6ece4'/%3E%3C/svg%3E"
+          alt="Screenshot of the Acme Studio dashboard"
+        />
+        <div class="shot-row">
+          <img
+            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='280'%3E%3Crect width='480' height='280' fill='%23f3f6f5'/%3E%3Crect x='24' y='24' width='200' height='14' rx='7' fill='%23c9dcd5'/%3E%3Crect x='24' y='56' width='300' height='10' rx='5' fill='%23dbe7e2'/%3E%3C/svg%3E"
+          />
+          <img
+            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='280'%3E%3Crect width='480' height='280' fill='%23f7f9f8'/%3E%3Crect x='24' y='24' width='160' height='14' rx='7' fill='%23cfe0da'/%3E%3Crect x='24' y='56' width='260' height='10' rx='5' fill='%23e2ebe7'/%3E%3C/svg%3E"
+            alt="Token diff view"
+          />
+        </div>
+      </section>
+
+      <section class="logos">
+        <h3>Trusted by 400 product teams</h3>
+        <p>Northwind, Kite, Lumen and 397 more ship their design system with Acme Studio.</p>
+      </section>
+
+      <section class="features">
+        <h2>Why teams switch</h2>
+        <ul>
+          <li>One source of truth for tokens, components and page specs.</li>
+          <li>Review screens with before/after evidence, not descriptions.</li>
+          <li>Accessibility checks run on every change, automatically.</li>
+        </ul>
+      </section>
+
+      <section class="whats-new">
+        <h3>What's new in 2.0</h3>
+        <p>Side-by-side token diffs, a shared review queue, and a public changelog your customers can follow.</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>© 2026 Acme Studio. All rights reserved.</p>
+    </footer>
+
+    <script>
+      // Simulates the kind of runtime regression a UI change can introduce.
+      console.error("Acme Studio: GET /api/tokens returned 500");
+    </script>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+proofshot-out/
+.proofshot-demo/
+*.log
+.DS_Store
+.scratch/

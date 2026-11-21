@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acme Studio — design systems that ship</title>
+    <style>
+      :root {
+        --ink: #14161a;
+        --muted: #5b6472;
+        --line: #e3e6ea;
+        --bg: #ffffff;
+        --soft: #f5f7fa;
+        --accent: #1f4bd8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        line-height: 1.55;
+      }
+      .site-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 32px;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand { font-weight: 650; text-decoration: none; color: inherit; letter-spacing: -0.01em; }
+      nav a { margin-left: 20px; color: var(--muted); text-decoration: none; font-size: 14px; }
+      main { max-width: 960px; margin: 0 auto; padding: 56px 32px 72px; }
+      .eyebrow {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 650;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      h1 {
+        font-size: 44px;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+        margin: 10px 0 16px;
+        max-width: 22ch;
+      }
+      .lede { font-size: 18px; color: var(--muted); max-width: 58ch; margin: 0; }
+      .actions { display: flex; gap: 12px; margin: 28px 0 40px; flex-wrap: wrap; }
+      button { font: inherit; }
+      .primary {
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 20px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .secondary {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 20px;
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
+        background: var(--soft);
+      }
+      .hero-shot { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 14px; display: block; }
+      .features { margin-top: 56px; }
+      .features h2 { font-size: 22px; letter-spacing: -0.02em; margin: 0 0 16px; }
+      .features ul { margin: 0; padding-left: 20px; color: var(--muted); }
+      .features li { margin-bottom: 8px; }
+      footer { border-top: 1px solid var(--line); padding: 24px 32px; color: var(--muted); font-size: 13px; }
+      footer p { margin: 0; }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">Acme Studio</a>
+      <nav aria-label="Main">
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Docs</a>
+        <a href="/changelog">Changelog</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Design systems</p>
+        <h1>Ship interfaces your team can trust.</h1>
+        <p class="lede">
+          Acme Studio keeps every screen, token and flow in one place, so design and
+          engineering review the same truth instead of three stale Figma pages.
+        </p>
+        <div class="actions">
+          <button class="primary" type="button">Start free trial</button>
+          <a class="secondary" href="/pricing">See pricing</a>
+        </div>
+        <img
+          class="hero-shot"
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='960' height='420'%3E%3Crect width='960' height='420' fill='%23eef2fb'/%3E%3Crect x='40' y='40' width='280' height='18' rx='9' fill='%23c9d5ee'/%3E%3Crect x='40' y='80' width='560' height='12' rx='6' fill='%23dbe3f2'/%3E%3Crect x='40' y='104' width='480' height='12' rx='6' fill='%23dbe3f2'/%3E%3Crect x='40' y='160' width='180' height='44' rx='10' fill='%231f4bd8'/%3E%3Crect x='680' y='40' width='240' height='164' rx='12' fill='%23dfe6f5'/%3E%3C/svg%3E"
+          alt="Screenshot of the Acme Studio dashboard"
+        />
+      </section>
+
+      <section class="features">
+        <h2>Why teams switch</h2>
+        <ul>
+          <li>One source of truth for tokens, components and page specs.</li>
+          <li>Review screens with before/after evidence, not descriptions.</li>
+          <li>Accessibility checks run on every change, automatically.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <p>© 2026 Acme Studio. All rights reserved.</p>
+    </footer>
+  </body>
+</html>
