@@ -151,7 +151,7 @@ DOM만 쓰는 검사기입니다(axe 의존성 없음, 브라우저 확장 없�
 proofshot init          # .github/workflows/proofshot.yml 작성
 ```
 
-생성된 워크플로는 `npx -y proofshot`으로 `proofshot`을 설치합니다 — 패키지가 배포되기 전까지 그 줄을 `npx -y github:developjik/proofshot`으로 바꾸세요. PR head와 베이스 커밋을 (`git worktree`로) 빌드하고, `proofshot compare --base ../proofshot-base/dist --head ./dist`를 실행하고, 증거 폴더를 아티팩트로 업로드하며, `report.md`를 다음 명령으로 게시합니다:
+생성된 워크플로는 `npx -y @developjik/proofshot@latest`로 proofshot을 실행합니다 — 스코프 패키지가 필요합니다(스코프 없는 `proofshot`은 타인의 패키지). proofshot ≤ 0.1.0으로 `.github/workflows/proofshot.yml`을 생성했다면 `proofshot init --force`로 다시 생성하거나 `npx` 줄을 직접 `@developjik/proofshot@latest`로 고치세요. PR head와 베이스 커밋을 (`git worktree`로) 빌드하고, `proofshot compare --base ../proofshot-base/dist --head ./dist`를 실행하고, 증거 폴더를 아티팩트로 업로드하며, `report.md`를 다음 명령으로 게시합니다:
 
 ```bash
 gh pr comment "$PR" --body-file proofshot-out/report.md --edit-last --create-if-none

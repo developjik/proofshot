@@ -1,6 +1,6 @@
 {
   "name": "@developjik/proofshot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Zero-config before/after screenshots, pixel diff, and accessibility deltas for pull requests — no Storybook, no Chromatic.",
   "keywords": [
     "visual-regression",

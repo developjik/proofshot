@@ -98,7 +98,7 @@ jobs:
         id: compare
         continue-on-error: true
         run: |
-          npx -y proofshot compare \\
+          npx -y @developjik/proofshot@latest compare \\
             --base "$BASE_DIR" \\
             --head "$HEAD_DIR" \\
             --base-ref "\${{ github.event.pull_request.base.sha }}" \\

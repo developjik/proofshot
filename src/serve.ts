@@ -1,5 +1,5 @@
 import { createServer, type Server } from "node:http";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import { extname, join, normalize, resolve, sep } from "node:path";
 
 export interface StaticServer {
@@ -43,12 +43,14 @@ export async function serveDirectory(rootDir: string): Promise<StaticServer> {
   if (!info?.isDirectory()) {
     throw new Error(`proofshot: "${rootDir}" is not a directory to serve`);
   }
+  // Containment is checked against the real root so a symlinked root works.
+  const rootReal = await realpath(root);
 
   const server: Server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", "http://127.0.0.1");
       const pathname = decodeURIComponent(url.pathname);
-      const file = await resolveFile(root, pathname);
+      const file = await resolveFile(rootReal, pathname);
       if (!file) {
         res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
         res.end(`proofshot: ${pathname} not found in ${root}`);
@@ -87,31 +89,37 @@ export async function serveDirectory(rootDir: string): Promise<StaticServer> {
   };
 }
 
-async function resolveFile(root: string, pathname: string): Promise<string | null> {
+async function resolveFile(rootReal: string, pathname: string): Promise<string | null> {
   const relative = normalize(pathname).replace(/^([/\\])+/, "");
   if (relative.split(sep).includes("..")) return null;
-  const target = join(root, relative);
+  const target = join(rootReal, relative);
 
-  const direct = await fileIfExists(target);
+  const direct = await fileIfExistsInside(target, rootReal);
   if (direct) return direct;
 
   if (!/\/$/.test(pathname) && !extname(pathname)) {
-    const asHtml = await fileIfExists(`${target}.html`);
+    const asHtml = await fileIfExistsInside(`${target}.html`, rootReal);
     if (asHtml) return asHtml;
   }
 
-  const index = await fileIfExists(join(target, "index.html"));
+  const index = await fileIfExistsInside(join(target, "index.html"), rootReal);
   if (index) return index;
 
   // SPA fallback: unknown routes render the shell.
-  const shell = await fileIfExists(join(root, "index.html"));
+  const shell = await fileIfExistsInside(join(rootReal, "index.html"), rootReal);
   return shell;
 }
 
-async function fileIfExists(filePath: string): Promise<string | null> {
+/**
+ * File existence check that follows symlinks safely: the candidate's real path
+ * must stay inside `rootReal`, so a link pointing outside is never served.
+ */
+async function fileIfExistsInside(filePath: string, rootReal: string): Promise<string | null> {
   try {
-    const info = await stat(filePath);
-    return info.isFile() ? filePath : null;
+    const real = await realpath(filePath);
+    if (real !== rootReal && !real.startsWith(`${rootReal}${sep}`)) return null;
+    const info = await stat(real);
+    return info.isFile() ? real : null;
   } catch {
     return null;
   }

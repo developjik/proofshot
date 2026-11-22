@@ -168,8 +168,11 @@ lists its raw counts (`images 1 · buttons 1 · links 0 · fields 0 · headings 
 proofshot init          # writes .github/workflows/proofshot.yml
 ```
 
-The generated workflow installs `proofshot` with `npx -y proofshot` — switch that line to
-`npx -y github:developjik/proofshot` until the package is published. It builds the PR head and
+The generated workflow runs proofshot with `npx -y @developjik/proofshot@latest` — the scoped
+package is required (unscoped `proofshot` on npm is somebody else's package). If you generated
+`.github/workflows/proofshot.yml` with proofshot ≤ 0.1.0, regenerate it with
+`proofshot init --force` or change the `npx` line to `@developjik/proofshot@latest` yourself.
+The workflow builds the PR head and
 the base commit (via `git worktree`), runs
 `proofshot compare --base ../proofshot-base/dist --head ./dist`, uploads the evidence folder as
 an artifact, and posts `report.md` with:
