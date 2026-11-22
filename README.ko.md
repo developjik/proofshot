@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/developjik/proofshot/actions/workflows/ci.yml/badge.svg)](https://github.com/developjik/proofshot/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@developjik/proofshot.svg)](https://www.npmjs.com/package/@developjik/proofshot)
 [![node >= 20](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](package.json)
 
 **Storybook 없이, 풀 리퀘스트를 위한 전후 스크린샷·픽셀 비교·접근성 델타.**
@@ -30,18 +31,18 @@
 
 ## 퀵스타트
 
-> **상태: 초기 MVP.** 아직 npm에 없으므로 배포된 `proofshot` 바이너리는 없습니다. GitHub에서 바로 실행하거나(설치 시 `prepare`로 빌드됨) 체크아웃에서 실행하세요.
+> **상태: 초기 MVP, npm 배포 중.** [`@developjik/proofshot`](https://www.npmjs.com/package/@developjik/proofshot)으로 설치하세요 — `@developjik` 스코프를 꼭 붙이세요. 스코프 없는 `proofshot`은 이름만 같은 타인의 패키지입니다.
 
 ```bash
-# 클론 없이 GitHub에서
-npx -y github:developjik/proofshot compare --base ../main/dist --head ./dist
+# 클론 없이 npm에서
+npx -y @developjik/proofshot compare --base ../main/dist --head ./dist
 
 # 또는 체크아웃에서 (npm install이 dist/도 빌드합니다)
 git clone https://github.com/developjik/proofshot && cd proofshot
 npm install && node dist/bin/cli.js compare --base ./demo/before --head ./demo/after --routes /,/pricing
 ```
 
-아래 명령은 모두 같은 플래그를 받으므로, 쓰는 진입점을 앞에 붙이면 됩니다(`npx -y github:developjik/proofshot` 또는 `node dist/bin/cli.js`).
+아래 명령은 모두 같은 플래그를 받으므로, 쓰는 진입점을 앞에 붙이면 됩니다(`npx -y @developjik/proofshot` 또는 `node dist/bin/cli.js`).
 
 ```bash
 # 두 빌드 비교 (proofshot이 두 디렉터리를 직접 서빙)
