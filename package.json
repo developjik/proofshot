@@ -1,5 +1,5 @@
 {
-  "name": "proofshot",
+  "name": "@developjik/proofshot",
   "version": "0.1.0",
   "description": "Zero-config before/after screenshots, pixel diff, and accessibility deltas for pull requests — no Storybook, no Chromatic.",
   "keywords": [
