@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/developjik/proofshot/actions/workflows/ci.yml/badge.svg)](https://github.com/developjik/proofshot/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@developjik/proofshot.svg)](https://www.npmjs.com/package/@developjik/proofshot)
 [![node >= 20](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](package.json)
 
 **Before/after screenshots, pixel diffs, and accessibility deltas for pull requests — without Storybook.**
@@ -39,12 +40,11 @@ screenshots what the PR actually changed, with no story to write.
 
 ## Quick start
 
-> **Status: early MVP.** Not on npm yet, so there is no published `proofshot` binary. Run it
-> straight from GitHub — npm builds it on install (`prepare`) — or from a checkout.
+> **Status: early MVP, published on npm.** Install as [`@developjik/proofshot`](https://www.npmjs.com/package/@developjik/proofshot) — keep the `@developjik` scope: the unscoped `proofshot` on npm is an unrelated third-party package.
 
 ```bash
-# from GitHub, no clone
-npx -y github:developjik/proofshot compare --base ../main/dist --head ./dist
+# from npm, no clone
+npx -y @developjik/proofshot compare --base ../main/dist --head ./dist
 
 # or from a checkout (npm install also builds dist/)
 git clone https://github.com/developjik/proofshot && cd proofshot
@@ -52,7 +52,7 @@ npm install && node dist/bin/cli.js compare --base ./demo/before --head ./demo/a
 ```
 
 Every command below takes the same flags, so prepend whichever entry point you use
-(`npx -y github:developjik/proofshot` or `node dist/bin/cli.js`).
+(`npx -y @developjik/proofshot` or `node dist/bin/cli.js`).
 
 ```bash
 # Compare two builds (proofshot serves both directories itself)
