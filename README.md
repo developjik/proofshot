@@ -1,5 +1,7 @@
 # proofshot
 
+[한국어](README.ko.md) · English
+
 [![CI](https://github.com/developjik/proofshot/actions/workflows/ci.yml/badge.svg)](https://github.com/developjik/proofshot/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![node >= 20](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](package.json)
