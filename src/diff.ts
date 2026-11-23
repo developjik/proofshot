@@ -1,6 +1,17 @@
+import { createRequire } from "node:module";
+import type pixelmatchFn from "pixelmatch" with { "resolution-mode": "import" };
 import { PNG } from "pngjs";
-import pixelmatch from "pixelmatch";
 import { round } from "./util";
+
+/**
+ * pixelmatch 8 is published as ESM only. This package still ships CommonJS, so a
+ * static `import` would force TypeScript (module: node16/nodenext) to reject the
+ * file. Node has supported `require()` of ESM since 20.19/22.12, so we load the
+ * module through `createRequire` — the same call the compiled CommonJS output
+ * would make — and keep the upstream types via a type-only import.
+ */
+const requireFromHere = createRequire(__filename);
+const pixelmatch: typeof pixelmatchFn = requireFromHere("pixelmatch").default;
 
 export interface ImageDiffOptions {
   /** pixelmatch colour-distance threshold (0–1). Default 0.1. */
