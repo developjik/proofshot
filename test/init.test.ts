@@ -30,6 +30,7 @@ describe("proofshot init", () => {
     expect(body).toContain("on:\n  pull_request:");
     expect(body).toContain("npx playwright install --with-deps chromium");
     expect(body).toContain("npx -y @developjik/proofshot@latest compare");
+    expect(body).not.toMatch(/npx (-y )?proofshot\b/);
     expect(body).toContain("gh pr comment");
     expect(body).toContain("--edit-last --create-if-none");
     expect(body).toContain("actions/upload-artifact@v4");

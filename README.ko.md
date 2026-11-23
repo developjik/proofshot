@@ -188,7 +188,7 @@ proofshot init [--force]
 Playwright는 자체 브라우저를 내려받습니다(`npx playwright install chromium`). 환경에 이미 있으면 proofshot이 그것을 가리키게 하세요:
 
 ```bash
-PROOFSHOT_CHROMIUM_PATH=/usr/bin/chromium npx proofshot compare ...
+PROOFSHOT_CHROMIUM_PATH=/usr/bin/chromium npx -y @developjik/proofshot compare ...
 ```
 
 ## 무엇이 기록되는가

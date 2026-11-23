@@ -43,6 +43,7 @@ describe("CLI", () => {
     const code = await runCli(["--version"], { stdout: out, stderr: out });
     expect(code).toBe(0);
     expect(lines.join("")).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(lines.join("").trim()).not.toBe("0.0.0");
   });
 
   it("rejects an unknown option", async () => {
