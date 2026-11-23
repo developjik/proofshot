@@ -214,7 +214,7 @@ Playwright downloads its own browser (`npx playwright install chromium`). If the
 already has one, point proofshot at it:
 
 ```bash
-PROOFSHOT_CHROMIUM_PATH=/usr/bin/chromium npx proofshot compare ...
+PROOFSHOT_CHROMIUM_PATH=/usr/bin/chromium npx -y @developjik/proofshot compare ...
 ```
 
 ## What gets written

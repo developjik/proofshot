@@ -335,7 +335,7 @@ export function readVersion(): string {
         name?: string;
         version?: string;
       };
-      if (parsed.name === "proofshot" && parsed.version) return parsed.version;
+      if (parsed.name === "@developjik/proofshot" && parsed.version) return parsed.version;
     } catch {
       // try the next location
     }
