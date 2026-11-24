@@ -55,7 +55,7 @@ export function routeSlug(route: string): string {
 /** Stable identity for an image artifact; the readable slug is not unique. */
 export function routeArtifactId(route: string): string {
   const normalized = normalizeRoute(route);
-  return `${routeSlug(normalized).slice(0, 64)}-${createHash("sha256").update(normalized).digest("hex")}`;
+  return `${routeSlug(normalized).slice(0, 32)}-${createHash("sha256").update(normalized).digest("hex").slice(0, 32)}`;
 }
 
 const IGNORED_SEGMENT =
