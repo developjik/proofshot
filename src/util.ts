@@ -107,3 +107,8 @@ export function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
 export function isUrl(target: string): boolean {
   return /^https?:\/\//i.test(target);
 }
+
+/** Scene identity hashes raw structured data, never path-normalized user names. */
+export function sceneArtifactId(route: string, name: string): string {
+  return `scene-${createHash("sha256").update(JSON.stringify([normalizeRoute(route), name])).digest("hex")}`;
+}
