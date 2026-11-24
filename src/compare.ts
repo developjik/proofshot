@@ -1,3 +1,4 @@
+import { computeAxeDelta } from './axe';
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { applyRouteParams, loadConfig } from "./config";
@@ -33,6 +34,7 @@ export interface CompareOptions {
   fullPage?: boolean;
   settleMs?: number;
   collectA11y?: boolean;
+  axe?: boolean;
   failOn?: FailOn[];
   log?: (message: string) => void;
 }
@@ -104,6 +106,8 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
       fullPage: options.fullPage ?? config.fullPage,
       settleMs: options.settleMs ?? config.settleMs,
       collectA11y,
+      axe: options.axe,
+      axeCwd: cwd,
     }),
     captureSide({
       target: head,
@@ -114,6 +118,8 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
       fullPage: options.fullPage ?? config.fullPage,
       settleMs: options.settleMs ?? config.settleMs,
       collectA11y,
+      axe: options.axe,
+      axeCwd: cwd,
     }),
   ]);
 
@@ -305,6 +311,7 @@ async function comparePair(input: {
     result.a11y = computeA11yDelta(base.a11y, head.a11y);
   }
 
+  if (base?.axe && head?.axe) result.axe = computeAxeDelta(base.axe, head.axe);
   return result;
 }
 
