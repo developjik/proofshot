@@ -100,8 +100,9 @@ test('different document origin cannot validate even complete destination answer
 });
 
 test('missing initial probe still blocks a cross-document visual comparison',async()=>{
- const c=await fixture(`document.querySelector('#open').onclick=()=>{location.href='/second';};`);
- c.scenes[0].expect='#result';
+ const c=await fixture(`if(location.pathname==='/second'){document.querySelector('#result').id='arrived';document.querySelector('#arrived').textContent='Arrived';}document.querySelector('#open').onclick=()=>{setTimeout(()=>location.href='/second',700);};`);
+ c.scenes[0].steps.push({action:'wait',selector:'#arrived'});
+ c.scenes[0].expect='#arrived';
  const broken={...livesay,readProbeSnapshot:async()=>{throw new Error('no probe');}};
- const pack=await runPack(c,broken);assert.equal(pack.rows[0].status,'unverified');assert.equal(pack.rows[0].visual.status,'error');assert.equal(pack.rows[0].visual.images.after,undefined);
+ const pack=await runPack(c,broken);assert.equal(pack.rows[0].status,'unverified');assert.equal(pack.rows[0].visual.status,'error');assert.equal(pack.rows[0].visual.images.after,undefined);assert.match(pack.rows[0].visual.error,/Cross-document scene is blocked/);
 });
