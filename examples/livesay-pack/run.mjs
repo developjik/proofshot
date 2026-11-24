@@ -43,7 +43,9 @@ async function targetInfo(path, commit) {
 /** Serializable browser predicate; absolute elapsed time survives same-tab navigation. */
 export function observationComplete({ids, baselineOrigin, grace, observationStart}) {
   const snapshot = window.__livesayProbe?.snapshot();
-  const excluded = performance.timeOrigin === baselineOrigin ? ids : [];
+  // A document replacement loses the prior probe transcript. Never call it verified.
+  if (performance.timeOrigin !== baselineOrigin) return false;
+  const excluded = ids;
   const answers = snapshot?.answers.filter(a => !excluded.includes(a.id)) ?? [];
   return answers.length > 0 && answers.every(a => a.outcome !== 'running' && Number.isFinite(a.endedAt)) && performance.timeOrigin + performance.now() - observationStart >= grace && snapshot.capturedAt - Math.max(...answers.map(a => a.endedAt)) >= grace;
 }
@@ -92,7 +94,8 @@ export async function runPack(config, livesay) {
         await page.waitForFunction(observationComplete, {ids: oldIds.ids, baselineOrigin: oldIds.timeOrigin, grace: graceMs, observationStart}, { timeout: 1500 + graceMs * 3, polling: 50 });
         const snapshot = await livesay.readProbeSnapshot(page);
         const currentOrigin = await page.evaluate(() => performance.timeOrigin);
-        const ids = currentOrigin === oldIds.timeOrigin ? oldIds.ids : [];
+        if (currentOrigin !== oldIds.timeOrigin) throw new Error('cross-document evidence lost');
+        const ids = oldIds.ids;
         if (!snapshot.events.length || !snapshot.answers.filter(a => !ids.includes(a.id)).length || snapshot.answers.some(a => a.outcome === 'running')) throw new Error('empty recording');
         const report = livesay.audit(snapshot, { profile: 'nvda-like' });
         const item = { binding: { ...binding }, scene: capture.scene, side: capture.side, report };
