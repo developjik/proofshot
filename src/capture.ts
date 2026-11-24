@@ -27,6 +27,12 @@ export interface CaptureOptions {
   collectA11y?: boolean;
   axe?: boolean;
   axeCwd?: string;
+  /** Opt-in observer, run on the same page/scene as the screenshot. Exceptions fail that capture. */
+  observer?: CaptureObserver;
+}
+export interface CaptureObserver {
+  beforeNavigate?(page: import('playwright').Page, capture: PageCapture): Promise<void>;
+  beforeScreenshot?(page: import('playwright').Page, capture: PageCapture): Promise<void>;
 }
 
 export interface PageCapture {
@@ -110,6 +116,7 @@ export async function captureSide(options: CaptureOptions): Promise<CaptureSideR
             collectA11y: options.collectA11y ?? true,
             axe: options.axe,
             axeCwd: options.axeCwd,
+            observer: options.observer,
           });
           } finally { await sceneContext?.close(); }
           captures.push(capture);
@@ -141,6 +148,7 @@ async function capturePage(
     collectA11y: boolean;
     axe?: boolean;
     axeCwd?: string;
+    observer?: CaptureObserver;
   },
 ): Promise<PageCapture> {
   const page = await context.newPage();
@@ -163,6 +171,7 @@ async function capturePage(
   };
 
   try {
+    await options.observer?.beforeNavigate?.(page, base);
     const response = await page.goto(options.url, {
       waitUntil: "load",
       timeout: options.timeoutMs,
@@ -235,6 +244,7 @@ async function capturePage(
 
     }
 
+    await options.observer?.beforeScreenshot?.(page, base);
     const artifact = options.scene ? sceneArtifactId(options.route, options.scene.name) : routeArtifactId(options.route);
     const fileName = `${options.side}-${artifact}-${options.viewport}.png`;
     const screenshotPath = join(options.outDir, fileName);
