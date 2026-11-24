@@ -67,12 +67,18 @@ describe("serveDirectory", () => {
       expect(file.text).not.toContain("TOP-SECRET-CONTENT");
       const dirHit = await body(`${server.url}/leaks/key.txt`);
       expect(dirHit.status).toBe(403);
+      expect((await body(`${server.url}/leaks/absent.txt`)).status).toBe(403);
       expect(dirHit.text).not.toContain("KEY-CONTENT");
       // A named .html link outside is refused even though it would exist.
       await symlink(join(outside, "secret.txt"), join(root, "leak.html"));
       const html = await body(`${server.url}/leak`);
       expect(html.status).toBe(403);
       expect(html.text).not.toContain("TOP-SECRET-CONTENT");
+      // An internal directory index has precedence over a sibling HTML link.
+      await mkdir(join(root, "pricing"));
+      await writeFile(join(root, "pricing", "index.html"), "pricing page");
+      await symlink(join(outside, "secret.txt"), join(root, "pricing.html"));
+      expect((await body(`${server.url}/pricing`)).text).toBe("pricing page");
       // Legitimate files keep working while hostile links are refused.
       expect((await body(`${server.url}/index.html`)).text).toBe("shell");
     } finally {
