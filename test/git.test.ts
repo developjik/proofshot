@@ -77,12 +77,12 @@ describe('real Git changed-file paths', () => {
     expect(routes.map(r=>r.route)).toEqual(['/pricing']);
   });
   it.skipIf(process.platform === 'win32')('escapes terminal controls but preserves JSON filenames', async () => {
-    const f=fixture(); f.add(['app/evil\x1b[2J/page.tsx']);
+    const f=fixture(); f.add(['app/evil\x1b[2J\u009b/page.tsx']);
     for(const json of [false,true]) {
       const lines:string[]=[];
       await runCli(['routes','--base-ref',f.base,...(json?['--json']:[])],{cwd:f.cwd,stdout:l=>lines.push(l)});
-      const text=lines.join('\n'); expect(text).not.toContain('\x1b');
-      if(json) expect(JSON.parse(text).files).toEqual(['app/evil\x1b[2J/page.tsx']);
+      const text=lines.join('\n'); expect(text).not.toContain('\x1b'); if(!json) expect(text).not.toContain('\u009b');
+      if(json) expect(JSON.parse(text).files).toEqual(['app/evil\x1b[2J\u009b/page.tsx']);
     }
   });
   it.skipIf(process.platform === 'win32')('captures the actual tab-named static page through Git inference', async () => {
