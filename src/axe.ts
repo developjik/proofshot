@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { Page } from 'playwright';
 export interface AxeIssue { rule: string; impact: string | null; target: Array<string | string[]>; detail: string }
 export interface AxeSnapshot { status: 'ok' | 'skipped'; reason?: string; issues: AxeIssue[]; incomplete?: number; uncertain?: AxeIssue[]; partial?: boolean; unauditedFrames?: string[][] }
-export interface AxeDelta { before: AxeSnapshot; after: AxeSnapshot; regressions: AxeIssue[]; existing: AxeIssue[]; fixes: AxeIssue[]; regressed: boolean }
+export interface AxeDelta { before: AxeSnapshot; after: AxeSnapshot; regressions: AxeIssue[]; existing: AxeIssue[]; fixes: AxeIssue[]; unclassified?: AxeIssue[]; regressed: boolean }
 /** Optional, lazy resolution from the invoking project's dependencies. No network fetch. */
 export async function captureAxe(page: Page, cwd = process.cwd()): Promise<AxeSnapshot> {
   let source: string;
@@ -38,7 +38,7 @@ const key = (issue: AxeIssue) => JSON.stringify([issue.rule, issue.target]);
 export function computeAxeDelta(before: AxeSnapshot, after: AxeSnapshot): AxeDelta {
   if (before.status !== 'ok' || after.status !== 'ok') return { before, after, regressions: [], existing: [], fixes: [], regressed: false };
   const old = new Set(before.issues.map(key)); const current = new Set([...after.issues, ...(after.uncertain ?? [])].map(key));
-  const unknownBefore = (issue:AxeIssue) => before.unauditedFrames?.some(prefix=>prefix.every((part,index)=>issue.target[index]===part));
+  const unknownBefore = (issue:AxeIssue) => before.unauditedFrames?.some(prefix=>prefix.length>0 && prefix.length<issue.target.length && prefix.every((part,index)=>issue.target[index]===part));
   const regressions = after.issues.filter(issue => !old.has(key(issue)) && !unknownBefore(issue));
-  return { before, after, regressions, existing: after.issues.filter(issue => old.has(key(issue))), fixes: after.partial ? [] : before.issues.filter(issue => !current.has(key(issue))), regressed: regressions.length > 0 };
+  return { before, after, regressions, unclassified: after.issues.filter(issue => !old.has(key(issue)) && unknownBefore(issue)), existing: after.issues.filter(issue => old.has(key(issue))), fixes: after.partial ? [] : before.issues.filter(issue => !current.has(key(issue))), regressed: regressions.length > 0 };
 }
