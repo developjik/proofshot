@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import { readFile, realpath, stat } from "node:fs/promises";
-import { extname, join, normalize, resolve, sep } from "node:path";
+import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 
 export interface StaticServer {
   /** Origin plus assigned port, e.g. `http://127.0.0.1:41234`. */
@@ -97,13 +97,13 @@ async function resolveFile(rootReal: string, pathname: string): Promise<string |
   const direct = await fileIfExistsInside(target, rootReal);
   if (direct) return direct;
 
+  const index = await fileIfExistsInside(join(target, "index.html"), rootReal);
+  if (index) return index;
+
   if (!/\/$/.test(pathname) && !extname(pathname)) {
     const asHtml = await fileIfExistsInside(`${target}.html`, rootReal);
     if (asHtml) return asHtml;
   }
-
-  const index = await fileIfExistsInside(join(target, "index.html"), rootReal);
-  if (index) return index;
 
   // SPA fallback: unknown routes render the shell.
   const shell = await fileIfExistsInside(join(rootReal, "index.html"), rootReal);
@@ -125,6 +125,23 @@ async function fileIfExistsInside(filePath: string, rootReal: string): Promise<s
     return info.isFile() ? real : null;
   } catch (error) {
     if ((error as { code?: string }).code === "ROOT_ESCAPE") throw error;
+    // Check the nearest existing ancestor too, so a missing file below an
+    // external directory link is refused just like an existing file.
+    if ((error as { code?: string }).code === "ENOENT") {
+      let ancestor = dirname(filePath);
+      while (ancestor !== dirname(ancestor)) {
+        try {
+          const real = await realpath(ancestor);
+          if (real !== rootReal && !real.startsWith(`${rootReal}${sep}`)) {
+            throw Object.assign(new Error("Path escapes static root"), { code: "ROOT_ESCAPE" });
+          }
+          break;
+        } catch (parentError) {
+          if ((parentError as { code?: string }).code !== "ENOENT") throw parentError;
+          ancestor = dirname(ancestor);
+        }
+      }
+    }
     return null;
   }
 }
