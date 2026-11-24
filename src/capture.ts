@@ -172,7 +172,10 @@ async function capturePage(
     }
     // Disable CSS smooth scrolling only for scene captures. Otherwise the
     // initial lazy sweep can leave an animation running during the actions.
-    if (options.scene) await page.addStyleTag({ content: 'html, body, * { scroll-behavior: auto !important; }' });
+    if (options.scene) await page.evaluate(() => {
+      document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
+      document.body.style.setProperty('scroll-behavior', 'auto', 'important');
+    });
     await page
       .waitForLoadState("networkidle", { timeout: Math.min(8_000, options.timeoutMs) })
       .catch(() => undefined);
