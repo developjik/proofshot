@@ -85,10 +85,7 @@ export function buildReportMarkdown(
 
   if (stats.total === 0) {
     lines.push("_No screens changed and no captures were produced._");
-    const markdown = `${lines.join("\n")}\n`;
-  if (markdown.length <= 60000) return markdown;
-  const cutoff = markdown.lastIndexOf("\n", 59000);
-  return markdown.slice(0, cutoff) + "\n\nReport shortened for PR comment limits. Full issue details are in report.json.\n";
+    return `${lines.join("\n")}\n`;
   }
 
   lines.push("| Route | Viewport | Pixel diff | a11y | Console | Status |");
@@ -206,7 +203,7 @@ export function buildReportMarkdown(
   );
 
   const markdown = `${lines.join("\n")}\n`;
-  if (markdown.length <= 60000) return markdown;
+  if (!axeResults.length || markdown.length <= 60000) return markdown;
   const cutoff = markdown.lastIndexOf("\n", 59000);
   return markdown.slice(0, cutoff) + "\n\nReport shortened for PR comment limits. Full issue details are in report.json.\n";
 }
