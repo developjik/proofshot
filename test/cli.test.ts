@@ -10,7 +10,10 @@ async function tempProject(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "proofshot-cli-"));
   dirs.push(dir);
   await mkdir(join(dir, "src/app/pricing"), { recursive: true });
-  await writeFile(join(dir, "src/app/page.tsx"), "export default function Page() { return null; }\n");
+  await writeFile(
+    join(dir, "src/app/page.tsx"),
+    "export default function Page() { return null; }\n",
+  );
   await writeFile(
     join(dir, "src/app/pricing/page.tsx"),
     "export default function Page() { return null; }\n",
@@ -24,7 +27,9 @@ function capture(): { lines: string[]; out: (line: string) => void } {
 }
 
 afterEach(async () => {
-  await Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  await Promise.all(
+    dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
+  );
 });
 
 describe("CLI", () => {
@@ -48,7 +53,10 @@ describe("CLI", () => {
 
   it("rejects an unknown option", async () => {
     const { lines, out } = capture();
-    const code = await runCli(["compare", "--nope"], { stdout: out, stderr: out });
+    const code = await runCli(["compare", "--nope"], {
+      stdout: out,
+      stderr: out,
+    });
     expect(code).toBe(2);
     expect(lines.join("\n")).toContain("unknown option --nope");
   });
@@ -82,7 +90,9 @@ describe("CLI", () => {
       stdout: out,
       stderr: out,
     });
-    const parsed = JSON.parse(lines.join("\n")) as { routes: Array<{ route: string }> };
+    const parsed = JSON.parse(lines.join("\n")) as {
+      routes: Array<{ route: string }>;
+    };
     expect(parsed.routes.map((route) => route.route)).toEqual(["/pricing"]);
   });
 
@@ -91,7 +101,9 @@ describe("CLI", () => {
     const { lines, out } = capture();
     const code = await runCli(["init"], { cwd, stdout: out, stderr: out });
     expect(code).toBe(0);
-    expect(lines.join("\n")).toContain("created .github/workflows/proofshot.yml");
+    expect(lines.join("\n")).toContain(
+      "created .github/workflows/proofshot.yml",
+    );
   });
 
   it("requires both sides for compare", async () => {
@@ -105,4 +117,25 @@ describe("CLI", () => {
     expect(code).toBe(1);
     expect(lines.join("\n")).toContain("both sides are required");
   });
+});
+
+it("explicit configured routes bypass unsupported dynamic source scanning", async () => {
+  const cwd = await tempProject();
+  await writeFile(
+    join(cwd, "src/App.tsx"),
+    '<Route path={prefix}><Route path="settings" /></Route>',
+  );
+  await writeFile(
+    join(cwd, ".proofshot.json"),
+    JSON.stringify({ routes: ["/chosen"] }),
+  );
+  const { lines, out } = capture();
+  expect(
+    await runCli(["routes", "--json", "--files", "src/App.tsx"], {
+      cwd,
+      stdout: out,
+      stderr: out,
+    }),
+  ).toBe(0);
+  expect(lines.join("")).toContain("/chosen");
 });
