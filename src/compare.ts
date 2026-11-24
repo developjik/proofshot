@@ -15,7 +15,7 @@ import {
 import { discoverRouterRoutes, detectNextProject, inferRoutes } from "./routes";
 import { normalizeScenes } from './scenes';
 import type { SceneSpec, ProofshotConfig, ProofshotMeta, ViewportSpec } from "./types";
-import { formatPercent, isUrl, normalizeRoute, routeArtifactId, uniqueBy } from "./util";
+import { formatPercent, isUrl, normalizeRoute, routeArtifactId, sceneArtifactId, uniqueBy } from "./util";
 
 export type FailOn = "change" | "a11y" | "error";
 
@@ -93,7 +93,7 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
     );
   }
 
-  const scenes = normalizeScenes(options.scenes ?? config.scenes ?? []).map(scene => ({ ...scene, route: applyRouteParams(scene.route, config.params).route })).filter(scene => routes.includes(scene.route));
+  const scenes = normalizeScenes(options.scenes ?? config.scenes ?? []).map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => routes.includes(scene.route));
 
   await mkdir(outDir, { recursive: true });
 
@@ -256,7 +256,7 @@ function resolveRoutes(input: {
         `Route ${candidate.route} needs param(s) ${applied.unresolved.join(", ")}; captured as-is.`,
       );
     }
-    return { ...candidate, route: applied.route };
+    return { ...candidate, route: normalizeRoute(applied.route) };
   });
 
   const unique = uniqueBy(resolved, (candidate) => candidate.route);
@@ -312,7 +312,7 @@ async function comparePair(input: {
     result.sizes = { before: diff.before, after: diff.after };
     result.status = diff.diffPercent > thresholdPercent ? "changed" : "unchanged";
     if (diff.changedPixels > 0) {
-      const artifact = scene ? `scene-${routeArtifactId(JSON.stringify([route, scene]))}` : routeArtifactId(route);
+      const artifact = scene ? sceneArtifactId(route, scene) : routeArtifactId(route);
       const diffName = `${artifact}-${viewport}-diff.png`;
       await writeFile(resolve(outDir, diffName), diff.diffPng);
       result.images.diff = diffName;
