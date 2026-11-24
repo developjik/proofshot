@@ -1,3 +1,4 @@
+import { captureAxe, type AxeSnapshot } from './axe';
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { chromium, type Browser } from "playwright";
@@ -22,6 +23,8 @@ export interface CaptureOptions {
   settleMs?: number;
   timeoutMs?: number;
   collectA11y?: boolean;
+  axe?: boolean;
+  axeCwd?: string;
 }
 
 export interface PageCapture {
@@ -33,6 +36,7 @@ export interface PageCapture {
   height?: number;
   screenshotPath?: string;
   a11y?: A11ySnapshot;
+  axe?: AxeSnapshot;
   consoleErrors: string[];
   error?: string;
 }
@@ -95,6 +99,8 @@ export async function captureSide(options: CaptureOptions): Promise<CaptureSideR
             settleMs: options.settleMs ?? 400,
             timeoutMs: options.timeoutMs ?? 30_000,
             collectA11y: options.collectA11y ?? true,
+            axe: options.axe,
+            axeCwd: options.axeCwd,
           });
           captures.push(capture);
         }
@@ -122,15 +128,18 @@ async function capturePage(
     settleMs: number;
     timeoutMs: number;
     collectA11y: boolean;
+    axe?: boolean;
+    axeCwd?: string;
   },
 ): Promise<PageCapture> {
   const page = await context.newPage();
   const consoleErrors: string[] = [];
+  let auditing = false;
   page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
+    if (!auditing && message.type() === "error") consoleErrors.push(message.text());
   });
   page.on("pageerror", (error) => {
-    consoleErrors.push(`Uncaught ${error.message}`);
+    if (!auditing) consoleErrors.push(`Uncaught ${error.message}`);
   });
 
   const base: PageCapture = {
@@ -190,6 +199,7 @@ async function capturePage(
     if (options.collectA11y) {
       base.a11y = await captureA11y(page, consoleErrors);
     }
+    if (options.axe) { auditing = true; try { base.axe = await captureAxe(page, options.axeCwd); } finally { auditing = false; } }
   } catch (error) {
     base.error = (error as Error).message;
     base.consoleErrors = consoleErrors;

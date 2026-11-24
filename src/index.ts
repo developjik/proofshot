@@ -9,3 +9,5 @@ export * from "./report";
 export * from "./init";
 export * from "./config";
 export * from "./git";
+
+export * from './axe';

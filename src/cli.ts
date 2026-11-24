@@ -142,6 +142,7 @@ async function commandCompare(
     viewports,
     fullPage: parsed.flags.has("no-full-page") ? false : parsed.flags.has("full-page") ? true : undefined,
     settleMs,
+    axe: parsed.flags.get("a11y") === "axe",
     collectA11y: parsed.flags.has("no-a11y") ? false : parsed.flags.has("a11y") ? true : undefined,
     failOn,
     log: ctx.quiet ? () => undefined : ctx.out,
@@ -245,6 +246,7 @@ function summaryTable(
     status: string;
     diffPercent: number | null;
     a11y?: { regressions: unknown[]; fixes: unknown[] } | null;
+    axe?: { regressions: unknown[]; fixes: unknown[] };
     consoleErrors: { before: number; after: number };
   }>,
 ): string {
@@ -257,9 +259,7 @@ function summaryTable(
   for (const result of results) {
     const diff =
       result.diffPercent === null ? "—" : `${result.diffPercent.toFixed(2)}%`.padStart(9);
-    const net = result.a11y
-      ? result.a11y.regressions.length - result.a11y.fixes.length
-      : 0;
+    const net = (result.a11y ? result.a11y.regressions.length - result.a11y.fixes.length : 0) + (result.axe ? result.axe.regressions.length - result.axe.fixes.length : 0);
     const a11y = net === 0 ? "0".padStart(4) : `${net > 0 ? "+" : ""}${net}`.padStart(4);
     const consoleCell = `${result.consoleErrors.before}→${result.consoleErrors.after}`.padStart(7);
     lines.push(
@@ -294,6 +294,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       }
       if (inlineValue !== undefined) {
         flags.set(name, inlineValue);
+      } else if (name === "a11y" && argv[index + 1] === "axe") {
+        flags.set(name, "axe"); index += 1;
       } else if (BOOLEAN_FLAGS.has(name)) {
         flags.set(name, true);
       } else {
@@ -364,6 +366,7 @@ compare:
   --full-page, --no-full-page
   --settle <ms>             wait after load before screenshotting (default 400)
   --a11y, --no-a11y         run the accessibility delta (default on)
+  --a11y axe               additionally run optional axe-core (default off)
   --fail-on <list>          change,a11y,error — exit 1 when any occurs
   --json                    print the machine-readable report
   --quiet                   suppress progress lines

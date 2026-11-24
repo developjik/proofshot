@@ -150,3 +150,10 @@ describe("buildReportMarkdown", () => {
     expect(buildReportMarkdown(meta, [])).toContain("_No screens changed");
   });
 });
+
+it('bounds a large PR report and keeps full structured details separate',()=>{
+ const result={route:'/',viewport:'desktop',status:'unchanged' as const,diffPercent:0,consoleErrors:{before:0,after:0}} as ComparisonResult;
+ const withoutAxe=buildReportMarkdown({...meta,notes:['detail'.repeat(20000)]},[result]);expect(withoutAxe.length).toBeGreaterThan(65536);
+ result.axe={before:{status:'ok',issues:[]},after:{status:'ok',issues:[]},regressions:[],existing:[],fixes:[],regressed:false};
+ const markdown=buildReportMarkdown({...meta,notes:['detail'.repeat(20000)]},[result]);expect(markdown.length).toBeLessThan(65536);expect(markdown).toContain('Full issue details are in report.json');
+});

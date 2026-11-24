@@ -1,3 +1,4 @@
+import type { AxeDelta } from './axe';
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { A11yDelta, A11yIssue } from "./a11y";
@@ -21,6 +22,7 @@ export interface ComparisonResult {
   sizes?: { before: { width: number; height: number }; after: { width: number; height: number } };
   images: { before?: string; after?: string; diff?: string };
   a11y?: A11yDelta | null;
+  axe?: AxeDelta;
   consoleErrors: { before: number; after: number };
   error?: string;
 }
@@ -46,7 +48,7 @@ export function computeStats(results: ComparisonResult[]): ReportStats {
     if (result.status === "changed") changed += 1;
     else if (result.status === "unchanged") unchanged += 1;
     else errors += 1;
-    if (result.a11y?.regressed) a11yRegressions += 1;
+    if (result.a11y?.regressed || result.axe?.regressed) a11yRegressions += 1;
     if (result.diffPercent !== null && result.diffPercent > worstPercent) {
       worstPercent = result.diffPercent;
     }
@@ -172,6 +174,26 @@ export function buildReportMarkdown(
     lines.push("");
   }
 
+  const axeResults = results.filter(result => result.axe);
+  if (axeResults.length) {
+    lines.push('## axe accessibility delta', '');
+    for (const result of axeResults) {
+      const axe = result.axe!;
+      lines.push(`### ${result.route} (${result.viewport})`, '');
+      if (axe.before.status !== 'ok' || axe.after.status !== 'ok') {
+        lines.push(`Skipped: base ${axe.before.reason ?? axe.before.status}; head ${axe.after.reason ?? axe.after.status}`, '');
+        continue;
+      }
+      lines.push(`New: ${axe.regressions.length}; Existing: ${axe.existing.length}; Fixed: ${axe.after.partial ? 'unavailable (partial head audit)' : axe.fixes.length}; Needs manual review: ${axe.after.incomplete ?? 0}`, '');
+      if (axe.before.partial) lines.push(`Baseline partial: ${axe.before.reason}`, '');
+      if (axe.after.partial) lines.push(`Partial: ${axe.after.reason}`, '');
+      for (const [label, issues] of [['New', axe.regressions], ['Existing', axe.existing], ['Fixed', axe.fixes], ['Unclassified (baseline not audited)', axe.unclassified ?? []]] as const) {
+        for (const issue of issues.slice(0, 20)) lines.push(`- ${label}: ${issue.rule} (${issue.impact ?? 'unknown'}) at ${JSON.stringify(issue.target).slice(0, 200)}`);
+        if (issues.length > 20) lines.push(`- ${issues.length - 20} more ${label.toLowerCase()} issues in report.json`);
+      }
+      lines.push('');
+    }
+  }
   if (meta.notes.length > 0) {
     lines.push("> " + meta.notes.join("\n> "));
     lines.push("");
@@ -181,7 +203,10 @@ export function buildReportMarkdown(
     `<sub>Generated ${meta.generatedAt} by [proofshot](https://github.com/developjik/proofshot) · base source \`${meta.baseSource}\` · head source \`${meta.headSource}\`</sub>`,
   );
 
-  return `${lines.join("\n")}\n`;
+  const markdown = `${lines.join("\n")}\n`;
+  if (!axeResults.length || markdown.length <= 60000) return markdown;
+  const cutoff = markdown.lastIndexOf("\n", 59000);
+  return markdown.slice(0, cutoff) + "\n\nReport shortened for PR comment limits. Full issue details are in report.json.\n";
 }
 
 function imageCell(file: string | undefined, label: string): string {
