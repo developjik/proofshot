@@ -173,8 +173,7 @@ async function capturePage(
     // Disable CSS smooth scrolling only for scene captures. Otherwise the
     // initial lazy sweep can leave an animation running during the actions.
     if (options.scene) await page.evaluate(() => {
-      document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
-      document.body.style.setProperty('scroll-behavior', 'auto', 'important');
+      for (const element of document.querySelectorAll<HTMLElement>('*')) element.style.setProperty('scroll-behavior', 'auto', 'important');
     });
     await page
       .waitForLoadState("networkidle", { timeout: Math.min(8_000, options.timeoutMs) })
@@ -214,6 +213,16 @@ async function capturePage(
           else await locator.waitFor({ state: 'visible', timeout });
         } catch (error) { throw new Error(`scene step ${index + 1} (${step.action}): ${(error as Error).message}`); }
       }
+      // Wait for explicit JS smooth scrolling and newly created scroll panels.
+      await page.evaluate(async () => {
+        let previous = '', stable = 0;
+        const end = Date.now() + 2000;
+        while (Date.now() < end && stable < 3) {
+          const current = JSON.stringify([scrollX, scrollY, ...Array.from(document.querySelectorAll('*')).filter(e => e.scrollHeight > e.clientHeight || e.scrollWidth > e.clientWidth).map(e => [e.scrollLeft, e.scrollTop])]);
+          stable = current === previous ? stable + 1 : 0; previous = current;
+          await new Promise(r => setTimeout(r, 50));
+        }
+      });
       if (options.scene.expect) await page.locator(options.scene.expect).waitFor({ state: 'visible', timeout: Math.min(5000, remaining()) });
       if (options.settleMs > 0) await page.waitForTimeout(Math.min(options.settleMs, remaining()));
       // Scene actions can reveal offscreen lazy content after the initial sweep.
