@@ -184,7 +184,7 @@ export function buildReportMarkdown(
         lines.push(`Skipped: base ${axe.before.reason ?? axe.before.status}; head ${axe.after.reason ?? axe.after.status}`, '');
         continue;
       }
-      lines.push(`New: ${axe.regressions.length}; Existing: ${axe.existing.length}; Fixed: ${axe.fixes.length}; Needs manual review: ${axe.after.incomplete ?? 0}`, '');
+      lines.push(`New: ${axe.regressions.length}; Existing: ${axe.existing.length}; Fixed: ${axe.after.partial ? 'unavailable (partial head audit)' : axe.fixes.length}; Needs manual review: ${axe.after.incomplete ?? 0}`, '');
       if (axe.before.partial) lines.push(`Baseline partial: ${axe.before.reason}`, '');
       if (axe.after.partial) lines.push(`Partial: ${axe.after.reason}`, '');
       for (const [label, issues] of [['New', axe.regressions], ['Existing', axe.existing], ['Fixed', axe.fixes], ['Unclassified (baseline not audited)', axe.unclassified ?? []]] as const) {
