@@ -68,6 +68,9 @@ describe("serveDirectory", () => {
       const dirHit = await body(`${server.url}/leaks/key.txt`);
       expect(dirHit.status).toBe(403);
       expect((await body(`${server.url}/leaks/absent.txt`)).status).toBe(403);
+      expect((await body(`${server.url}/leaks/missing/deeper/absent.txt`)).status).toBe(403);
+      expect((await body(`${server.url}/leaks/key.txt/deeper/absent.txt`)).status).toBe(403);
+      expect((await body(`${server.url}/leaks/key.txt/child`)).status).toBe(403);
       expect(dirHit.text).not.toContain("KEY-CONTENT");
       // A named .html link outside is refused even though it would exist.
       await symlink(join(outside, "secret.txt"), join(root, "leak.html"));
