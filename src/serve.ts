@@ -63,7 +63,7 @@ export async function serveDirectory(rootDir: string): Promise<StaticServer> {
       });
       res.end(body);
     } catch (error) {
-      res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+      res.writeHead((error as { code?: string }).code === "ROOT_ESCAPE" ? 403 : 500, { "content-type": "text/plain; charset=utf-8" });
       res.end(`proofshot: ${(error as Error).message}`);
     }
   });
@@ -117,10 +117,14 @@ async function resolveFile(rootReal: string, pathname: string): Promise<string |
 async function fileIfExistsInside(filePath: string, rootReal: string): Promise<string | null> {
   try {
     const real = await realpath(filePath);
-    if (real !== rootReal && !real.startsWith(`${rootReal}${sep}`)) return null;
+    if (real !== rootReal && !real.startsWith(`${rootReal}${sep}`)) {
+      // Existing escape paths must not fall through to the SPA shell.
+      throw Object.assign(new Error("Path escapes static root"), { code: "ROOT_ESCAPE" });
+    }
     const info = await stat(real);
     return info.isFile() ? real : null;
-  } catch {
+  } catch (error) {
+    if ((error as { code?: string }).code === "ROOT_ESCAPE") throw error;
     return null;
   }
 }

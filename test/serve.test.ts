@@ -63,12 +63,15 @@ describe("serveDirectory", () => {
     const server = await serveDirectory(root);
     try {
       const file = await body(`${server.url}/leak.txt`);
+      expect(file.status).toBe(403);
       expect(file.text).not.toContain("TOP-SECRET-CONTENT");
       const dirHit = await body(`${server.url}/leaks/key.txt`);
+      expect(dirHit.status).toBe(403);
       expect(dirHit.text).not.toContain("KEY-CONTENT");
       // A named .html link outside is refused even though it would exist.
       await symlink(join(outside, "secret.txt"), join(root, "leak.html"));
       const html = await body(`${server.url}/leak`);
+      expect(html.status).toBe(403);
       expect(html.text).not.toContain("TOP-SECRET-CONTENT");
       // Legitimate files keep working while hostile links are refused.
       expect((await body(`${server.url}/index.html`)).text).toBe("shell");
