@@ -327,3 +327,10 @@ own a11y delta, and blocked scenes do not stop other captures. Route-only users 
 the existing output. See [scene setup and safety](docs/scenes.md) and the
 [example configuration](docs/scenes.example.json). Use a disposable test environment:
 these steps are real UI actions, not a dry run.
+
+## Visual + announcement evidence
+
+An opt-in local [livesay evidence-pack example](examples/livesay-pack/README.md)
+uses the existing scene grammar to bind screenshots, DOM checks and simulated
+announcement changes to one base/head pair. It generates proposed comment
+Markdown only, with explicit unverified collection states.
