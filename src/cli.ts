@@ -235,6 +235,7 @@ async function commandRoutes(
     ? []
     : discoverRouterRoutes(ctx.cwd);
   const candidates = inferRoutes(diff.files, {
+    gitPaths: !explicitFiles,
     config,
     routerRoutes,
     nextProject: detectNextProject(ctx.cwd),
@@ -273,7 +274,7 @@ async function commandRoutes(
   );
   for (const candidate of candidates) {
     ctx.out(
-      `${candidate.route.padEnd(width)}  ${candidate.framework.padEnd(frameworkWidth)}  ${candidate.source}`,
+      `${terminalSafe(candidate.route).padEnd(width)}  ${candidate.framework.padEnd(frameworkWidth)}  ${terminalSafe(candidate.source)}`,
     );
   }
   if (config.scenes?.length) {
@@ -470,4 +471,9 @@ export function resolveViewports(names: string[]): ViewportSpec[] {
   const specs = parseViewports(names.join(","));
   if (!specs) throw new Error("no viewports given");
   return specs;
+}
+
+/** Keep untrusted filenames from emitting terminal control sequences. JSON mode stays lossless. */
+function terminalSafe(value: string): string {
+  return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, char => JSON.stringify(char).slice(1,-1));
 }
