@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { ProofshotConfig, ViewportSpec } from "./types";
+import { normalizeScenes } from './scenes';
 import { normalizeRoute } from "./util";
 
 export interface LoadedConfig {
@@ -127,6 +128,7 @@ function normalizeConfig(raw: Record<string, unknown>): ProofshotConfig {
     config.params = params;
   }
 
+  if (raw.scenes !== undefined) config.scenes = normalizeScenes(raw.scenes);
   return config;
 }
 
