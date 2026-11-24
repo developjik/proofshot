@@ -2,7 +2,8 @@ import { captureAxe, type AxeSnapshot } from './axe';
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { chromium, type Browser } from "playwright";
-import type { ViewportSpec } from "./types";
+import { normalizeScenes } from './scenes';
+import type { SceneSpec, ViewportSpec } from "./types";
 import { captureA11y, type A11ySnapshot } from "./a11y";
 import { serveDirectory, type StaticServer } from "./serve";
 import { isUrl, normalizeRoute, routeArtifactId } from "./util";
@@ -16,6 +17,7 @@ export interface CaptureOptions {
   /** Build directory or http(s) URL. */
   target: string;
   routes: string[];
+  scenes?: SceneSpec[];
   viewports?: ViewportSpec[];
   outDir: string;
   side: "base" | "head";
@@ -28,6 +30,8 @@ export interface CaptureOptions {
 }
 
 export interface PageCapture {
+  scene?: string;
+  blocked?: boolean;
   route: string;
   viewport: string;
   side: "base" | "head";
@@ -53,6 +57,7 @@ export interface CaptureSideResult {
  * A failed page is recorded with its error and does not stop the run.
  */
 export async function captureSide(options: CaptureOptions): Promise<CaptureSideResult> {
+  const scenes = options.scenes ? normalizeScenes(options.scenes) : [];
   const viewports = options.viewports ?? DEFAULT_VIEWPORTS;
   const outDir = resolve(options.outDir);
   await mkdir(outDir, { recursive: true });
@@ -87,11 +92,15 @@ export async function captureSide(options: CaptureOptions): Promise<CaptureSideR
         timezoneId: "UTC",
       });
       try {
-        for (const route of options.routes) {
+        for (const job of [...options.routes.map(route => ({ route, scene: undefined as SceneSpec | undefined })), ...scenes.map(scene => ({ route: scene.route, scene }))]) {
+          const { route, scene } = job;
           const url = `${origin}${normalizeRoute(route) === "/" ? "/" : normalizeRoute(route)}`;
-          const capture = await capturePage(context, {
+          const sceneContext = scene ? await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: viewport.deviceScaleFactor ?? 1, reducedMotion: "reduce", colorScheme: "light", locale: "en-US", timezoneId: "UTC" }) : undefined;
+          let capture: PageCapture;
+          try { capture = await capturePage(sceneContext ?? context, {
             url,
             route,
+            scene,
             viewport: viewport.name,
             side: options.side,
             outDir,
@@ -102,6 +111,7 @@ export async function captureSide(options: CaptureOptions): Promise<CaptureSideR
             axe: options.axe,
             axeCwd: options.axeCwd,
           });
+          } finally { await sceneContext?.close(); }
           captures.push(capture);
         }
       } finally {
@@ -121,6 +131,7 @@ async function capturePage(
   options: {
     url: string;
     route: string;
+    scene?: SceneSpec;
     viewport: string;
     side: "base" | "head";
     outDir: string;
@@ -144,6 +155,7 @@ async function capturePage(
 
   const base: PageCapture = {
     route: options.route,
+    ...(options.scene ? { scene: options.scene.name } : {}),
     viewport: options.viewport,
     side: options.side,
     url: options.url,
@@ -179,7 +191,29 @@ async function capturePage(
       .catch(() => undefined);
     await page.waitForTimeout(120);
 
-    const fileName = `${options.side}-${routeArtifactId(options.route)}-${options.viewport}.png`;
+    if (options.scene) {
+      const deadline = Date.now() + options.timeoutMs;
+      const remaining = () => {
+        const ms = deadline - Date.now();
+        if (ms <= 0) throw new Error('scene total action timeout exceeded');
+        return ms;
+      };
+      for (const [index, step] of options.scene.steps.entries()) {
+        const locator = step.selector ? page.locator(step.selector) : page.getByText(step.text!, { exact: true });
+        const timeout = Math.min(step.timeoutMs ?? 5000, remaining());
+        try {
+          if (step.action === 'click') await locator.click({ timeout });
+          else if (step.action === 'fill') await locator.fill(step.value!, { timeout });
+          else if (step.action === 'press') await locator.press(step.value!, { timeout });
+          else await locator.waitFor({ state: 'visible', timeout });
+        } catch (error) { throw new Error(`scene step ${index + 1} (${step.action}): ${(error as Error).message}`); }
+      }
+      if (options.scene.expect) await page.locator(options.scene.expect).waitFor({ state: 'visible', timeout: Math.min(5000, remaining()) });
+      if (options.settleMs > 0) await page.waitForTimeout(Math.min(options.settleMs, remaining()));
+    }
+
+    const artifact = options.scene ? `scene-${routeArtifactId(JSON.stringify([options.route, options.scene.name]))}` : routeArtifactId(options.route);
+    const fileName = `${options.side}-${artifact}-${options.viewport}.png`;
     const screenshotPath = join(options.outDir, fileName);
     await page.screenshot({
       path: screenshotPath,
@@ -202,6 +236,7 @@ async function capturePage(
     if (options.axe) { auditing = true; try { base.axe = await captureAxe(page, options.axeCwd); } finally { auditing = false; } }
   } catch (error) {
     base.error = (error as Error).message;
+    if (options.scene) base.blocked = true;
     base.consoleErrors = consoleErrors;
   } finally {
     await page.close().catch(() => undefined);
