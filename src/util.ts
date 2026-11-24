@@ -19,7 +19,7 @@ export function stripExt(name: string): string {
 /** A case-insensitive key used to match `Dashboard.tsx` with `<Dashboard />`. */
 export function componentKey(value: string): string {
   return stripExt(value)
-    .replace(/[^a-zA-Z0-9]/g, "")
+    .replace(/[^\p{L}\p{N}]/gu, "")
     .toLowerCase();
 }
 
