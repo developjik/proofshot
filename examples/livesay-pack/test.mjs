@@ -98,3 +98,10 @@ test('different document origin cannot validate even complete destination answer
  assert.equal(observationComplete({ids:['x'],baselineOrigin:performance.timeOrigin-100,grace:1200,observationStart:now-5000}),'document-changed');
  } finally {globalThis.window=old;}
 });
+
+test('missing initial probe still blocks a cross-document visual comparison',async()=>{
+ const c=await fixture(`document.querySelector('#open').onclick=()=>{location.href='/second';};`);
+ c.scenes[0].expect='#result';
+ const broken={...livesay,readProbeSnapshot:async()=>{throw new Error('no probe');}};
+ const pack=await runPack(c,broken);assert.equal(pack.rows[0].status,'unverified');assert.equal(pack.rows[0].visual.status,'error');assert.equal(pack.rows[0].visual.images.after,undefined);
+});
