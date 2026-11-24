@@ -19,6 +19,8 @@ import {
 } from "./util";
 
 export interface InferRoutesOptions {
+  /** Git already uses slash separators; literal POSIX backslashes are unsupported route names. */
+  gitPaths?: boolean;
   config?: ProofshotConfig;
   /** Routes discovered from React Router definition files. */
   routerRoutes?: RouterRoute[];
@@ -85,6 +87,7 @@ export function inferRoutes(
   };
 
   for (const rawFile of changedFiles) {
+    if (options.gitPaths && rawFile.includes("\\")) continue;
     const file = toPosix(rawFile).replace(/^\.\//, "");
     if (isIgnoredSource(file)) continue;
 
@@ -217,7 +220,7 @@ export function staticHtmlRoute(file: string): string | null {
   } else {
     segments[segments.length - 1] = base;
   }
-  const route = `/${segments.join("/")}`;
+  const route = `/${segments.map(segment => encodeURIComponent(segment)).join("/")}`;
   return normalizeRoute(route);
 }
 
@@ -344,8 +347,8 @@ function matchRouterRoute(
   return routerRoutes.filter(
     (route) =>
       routerFileSet.has(file) ||
-      (route.component !== undefined && componentKey(route.component) === key) ||
-      Boolean(route.ancestors?.some(component=>componentKey(component)===key)),
+      (key !== "" && route.component !== undefined && componentKey(route.component) === key) ||
+      Boolean(key && route.ancestors?.some(component=>componentKey(component)===key)),
   );
 }
 
