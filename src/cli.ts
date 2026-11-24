@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseViewports } from "./capture";
-import { loadConfig } from "./config";
+import { applyRouteParams, loadConfig } from "./config";
 import { runCompare, type FailOn } from "./compare";
 import { changedFiles } from "./git";
 import { runInit, WORKFLOW_PATH } from "./init";
@@ -240,9 +240,10 @@ async function commandRoutes(
   });
 
   if (parsed.flags.has("json")) {
+    const scenes = config.scenes?.map(scene => ({ ...scene, route: applyRouteParams(scene.route, config.params).route })).filter(scene => candidates.some(candidate => applyRouteParams(candidate.route, config.params).route === scene.route));
     ctx.out(
       JSON.stringify(
-        { range: diff.range, files: diff.files, routes: candidates },
+        { range: diff.range, files: diff.files, routes: candidates, ...(scenes?.length ? { scenes } : {}) },
         null,
         2,
       ),
@@ -274,6 +275,9 @@ async function commandRoutes(
       `${candidate.route.padEnd(width)}  ${candidate.framework.padEnd(frameworkWidth)}  ${candidate.source}`,
     );
   }
+  if (config.scenes?.length) {
+    for (const scene of config.scenes.map(scene => ({ ...scene, route: applyRouteParams(scene.route, config.params).route })).filter(scene => candidates.some(candidate => applyRouteParams(candidate.route, config.params).route === scene.route))) ctx.out(`scene: ${scene.name} (${scene.route})`);
+  }
   return 0;
 }
 
@@ -297,6 +301,8 @@ async function commandInit(
 function summaryTable(
   results: Array<{
     route: string;
+    scene?: string;
+    blocked?: boolean;
     viewport: string;
     status: string;
     diffPercent: number | null;
@@ -308,7 +314,7 @@ function summaryTable(
   const lines: string[] = [];
   const routeWidth = Math.max(
     5,
-    ...results.map((result) => result.route.length),
+    ...results.map((result) => (result.scene ? `${result.route} [${result.scene}]` : result.route).length),
   );
   const viewportWidth = Math.max(
     8,
@@ -336,7 +342,7 @@ function summaryTable(
         7,
       );
     lines.push(
-      `${result.route.padEnd(routeWidth)}  ${result.viewport.padEnd(viewportWidth)}  ${diff}  ${a11y}  ${consoleCell}  ${result.status}`,
+      `${(result.scene ? `${result.route} [${result.scene}]` : result.route).padEnd(routeWidth)}  ${result.viewport.padEnd(viewportWidth)}  ${diff}  ${a11y}  ${consoleCell}  ${result.blocked ? 'blocked' : result.status}`,
     );
   }
   return lines.join("\n");
