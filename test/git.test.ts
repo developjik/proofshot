@@ -78,7 +78,8 @@ describe('real Git changed-file paths', () => {
   });
   it('lists and executes an unencoded Korean scene for an inferred static route', async () => {
     const f=fixture(); f.add(['설정/index.html']);
-    const config={scenes:[{name:'korean',route:'/설정',steps:[]},{name:'encoded',route:encodeURI('/설정').toLowerCase(),steps:[]}]};
+    writeFileSync(join(f.cwd,'설정/index.html'), '<main id="korean-page">unique Korean fixture</main>');
+    const config={scenes:[{name:'korean',route:'/설정',steps:[],expect:'#korean-page'},{name:'encoded',route:encodeURI('/설정').toLowerCase(),steps:[],expect:'#korean-page'}]};
     writeFileSync(join(f.cwd,'.proofshot.json'),JSON.stringify(config));
     const lines:string[]=[];
     await runCli(['routes','--base-ref',f.base,'--json'],{cwd:f.cwd,stdout:l=>lines.push(l)});
@@ -87,7 +88,21 @@ describe('real Git changed-file paths', () => {
     expect(result.stats.errors).toBe(0);
     expect(result.results.some(r=>r.scene==='korean')).toBe(true);
     expect(result.results.some(r=>r.scene==='encoded')).toBe(true);
-    expect(routeIdentity('/a%2fb')).not.toBe(routeIdentity('/a/b'));
+    expect(routeIdentity('/a%2fb',true)).not.toBe(routeIdentity('/a/b',true));
+    expect(routeIdentity('/search?q=%2f')).not.toBe(routeIdentity('/search?q=%2F'));
+    expect(routeIdentity('/search?q=%2f',true)).not.toBe(routeIdentity('/search?q=%2F',true));
+  },30000);
+  it('keeps explicit query escape casing exact in CLI and capture scene selection', async () => {
+    const f=fixture(); f.add(['index.html']);
+    const config={routes:['/search?q=%2F'],scenes:[{name:'not-selected',route:'/search?q=%2f',steps:[]}]};
+    writeFileSync(join(f.cwd,'.proofshot.json'),JSON.stringify(config));
+    const lines:string[]=[];
+    await runCli(['routes','--base-ref',f.base,'--json'],{cwd:f.cwd,stdout:l=>lines.push(l)});
+    expect(JSON.parse(lines.join('\n')).scenes).toBeUndefined();
+    const result=await runCompare({cwd:f.cwd,base:f.cwd,head:f.cwd,outDir:join(f.cwd,'artifacts'),viewports:[{name:'small',width:400,height:400}]});
+    expect(result.stats.errors).toBe(0);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]?.scene).toBeUndefined();
   },30000);
   it('does not match empty component keys and preserves Windows-style API inputs', () => {
     expect(inferRoutes(['src/pages/---.tsx'],{routerRoutes:[{route:'/wrong',component:'___',file:'src/App.tsx'}]}).map(r=>r.route)).not.toContain('/wrong');
