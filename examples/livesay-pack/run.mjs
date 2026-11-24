@@ -80,11 +80,13 @@ export async function runPack(config, livesay) {
       try {
         const oldIds = baselines.get(key(capture));
         if (!oldIds) throw new Error('scene start snapshot missing');
-        await page.waitForFunction(ids => {
-          const answers = window.__livesayProbe?.snapshot().answers.filter(a => !ids.includes(a.id)) ?? [];
-          return answers.length > 0 && answers.every(a => a.outcome !== 'running');
-        }, oldIds, { timeout: 1500 });
-        await page.waitForTimeout(graceMs);
+        await page.waitForFunction(({ids, grace}) => {
+          const snapshot = window.__livesayProbe?.snapshot();
+          const answers = snapshot?.answers.filter(a => !ids.includes(a.id)) ?? [];
+          // Every newly observed answer gets its own full grace. A later answer
+          // resets the boundary; bounded timeout leaves sustained streams unverified.
+          return answers.length > 0 && answers.every(a => a.outcome !== 'running' && Number.isFinite(a.endedAt)) && snapshot.capturedAt - Math.max(...answers.map(a => a.endedAt)) >= grace;
+        }, {ids: oldIds, grace: graceMs}, { timeout: 1500 + graceMs * 3, polling: 50 });
         const snapshot = await livesay.readProbeSnapshot(page);
         if (!snapshot.events.length || !snapshot.answers.filter(a => !oldIds.includes(a.id)).length || snapshot.answers.some(a => a.outcome === 'running')) throw new Error('empty recording');
         const report = livesay.audit(snapshot, { profile: 'nvda-like' });
