@@ -68,3 +68,5 @@ test('blocked child frame preserves top-level violations and marks audit partial
 test('previously unaudited frame violations are not called new while top-level remains comparable',()=>{
  const issue={rule:'image-alt',impact:'critical',target:['#child','#image'],detail:'alt'};const top={...issue,target:['#top']};const delta=computeAxeDelta({status:'ok',issues:[],partial:true,unauditedFrames:[['#child']]},{status:'ok',issues:[issue,top]});expect(delta.regressions).toEqual([top]);expect(delta.unclassified).toEqual([issue]);const replacement={...issue,target:['#child']};expect(computeAxeDelta({status:'ok',issues:[],partial:true,unauditedFrames:[['#child']]},{status:'ok',issues:[replacement]}).regressions).toEqual([replacement]);
 });
+
+test('lost baseline frame path marks child findings unknown without hiding top-level issues',()=>{const child={rule:'image-alt',impact:'critical',target:['iframe','#image'],detail:'alt'};const top={...child,target:['#top']};const delta=computeAxeDelta({status:'ok',issues:[],partial:true,unauditedFrames:[[]]},{status:'ok',issues:[child,top]});expect(delta.regressions).toEqual([top]);expect(delta.unclassified).toEqual([child]);});
