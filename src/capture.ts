@@ -6,7 +6,7 @@ import { normalizeScenes } from './scenes';
 import type { SceneSpec, ViewportSpec } from "./types";
 import { captureA11y, type A11ySnapshot } from "./a11y";
 import { serveDirectory, type StaticServer } from "./serve";
-import { isUrl, normalizeRoute, routeArtifactId } from "./util";
+import { isUrl, normalizeRoute, routeArtifactId, sceneArtifactId } from "./util";
 
 export const DEFAULT_VIEWPORTS: ViewportSpec[] = [
   { name: "desktop", width: 1280, height: 800 },
@@ -199,7 +199,7 @@ async function capturePage(
         return ms;
       };
       for (const [index, step] of options.scene.steps.entries()) {
-        const locator = step.selector ? page.locator(step.selector) : page.getByText(step.text!, { exact: true });
+        const locator = step.selector ? page.locator(step.selector) : page.getByText(step.text!, { exact: true }).filter({ visible: true });
         const timeout = Math.min(step.timeoutMs ?? 5000, remaining());
         try {
           if (step.action === 'click') await locator.click({ timeout });
@@ -210,9 +210,20 @@ async function capturePage(
       }
       if (options.scene.expect) await page.locator(options.scene.expect).waitFor({ state: 'visible', timeout: Math.min(5000, remaining()) });
       if (options.settleMs > 0) await page.waitForTimeout(Math.min(options.settleMs, remaining()));
+      // Scene actions can reveal offscreen lazy content after the initial sweep.
+      await page.evaluate(async (budget) => {
+        const end = Date.now() + budget;
+        const height = Math.min(document.body.scrollHeight, 100000);
+        for (let y = 0; y < height && Date.now() < end; y += Math.max(300, innerHeight)) {
+          scrollTo(0, y); await new Promise(r => setTimeout(r, 40));
+        }
+        scrollTo(0, 0);
+        await Promise.race([Promise.all(Array.from(document.images).filter(image => image.getBoundingClientRect().width > 0).map(image => image.decode().catch(() => undefined))), new Promise(r => setTimeout(r, Math.max(1, end - Date.now())))]);
+      }, Math.min(3000, remaining()));
+
     }
 
-    const artifact = options.scene ? `scene-${routeArtifactId(JSON.stringify([options.route, options.scene.name]))}` : routeArtifactId(options.route);
+    const artifact = options.scene ? sceneArtifactId(options.route, options.scene.name) : routeArtifactId(options.route);
     const fileName = `${options.side}-${artifact}-${options.viewport}.png`;
     const screenshotPath = join(options.outDir, fileName);
     await page.screenshot({
