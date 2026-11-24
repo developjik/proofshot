@@ -63,11 +63,46 @@ test("captures the inferred nested React Router child instead of the SPA fallbac
     );
     await page.goto(server.url + "/settings");
     await page.getByRole("heading", { name: "Wrong capture target" }).waitFor();
+    const project = join(temp, "project");
+    await mkdir(join(project, "src/pages"), { recursive: true });
+    await writeFile(join(project, "src/App.tsx"), source);
+    await writeFile(
+      join(project, "src/pages/Settings.tsx"),
+      "export const Settings=()=>null;",
+    );
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: project, stdio: "pipe" });
+    git("init");
+    git("add", ".");
+    git(
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.test",
+      "commit",
+      "-m",
+      "base",
+    );
+    await writeFile(
+      join(project, "src/pages/Settings.tsx"),
+      'export const Settings=()=>"changed";',
+    );
+    git("add", ".");
+    git(
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.test",
+      "commit",
+      "-m",
+      "change settings",
+    );
     const outcome = await runCompare({
-      cwd: process.cwd(),
+      cwd: project,
+      baseRef: "HEAD~1",
+      headRef: "HEAD",
       base: before,
       head: after,
-      routes: inferred.map((x) => x.route),
       outDir: join(temp, "report"),
       viewports: [{ name: "desktop", width: 1280, height: 800 }],
       settleMs: 50,
