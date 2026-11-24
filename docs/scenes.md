@@ -62,3 +62,8 @@ actions and can submit forms or trigger your app's side effects. Do not put secr
 in scene values or commit authenticated sessions. Browser contexts start without
 saved credentials. The generated workflow uploads evidence with `if: always()`;
 it does not swallow compare failure as a reason to skip the artifact.
+
+After actions, lazy content is swept with bounded instant scrolling. The post-action
+scroll position is restored before both full-page and viewport-only screenshots;
+fixed/sticky and scroll-driven UI therefore reflects that state, not a forced top.
+A 3-second sweep capped at 100000px does not guarantee infinite-scroll content.
