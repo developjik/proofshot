@@ -9,6 +9,8 @@ import { formatPercent } from "./util";
 export type ComparisonStatus = "changed" | "unchanged" | "error";
 
 export interface ComparisonResult {
+  scene?: string;
+  blocked?: boolean;
   route: string;
   viewport: string;
   status: ComparisonStatus;
@@ -90,7 +92,7 @@ export function buildReportMarkdown(
 
   lines.push("| Route | Viewport | Pixel diff | a11y | Console | Status |");
   lines.push("| --- | --- | --- | --- | --- | --- |");
-  for (const result of [...results].sort(sortResults)) {
+  for (const result of results.filter(result => !result.scene).sort(sortResults)) {
     const diff =
       result.diffPercent === null ? "—" : `**${formatPercent(result.diffPercent)}**`;
     const consoleCell =
@@ -105,8 +107,16 @@ export function buildReportMarkdown(
   }
   lines.push("");
 
+  const scenes = results.filter(result => result.scene);
+  if (scenes.length) {
+    lines.push('## Scenes', '');
+    lines.push('| Scene | Route | Viewport | Pixel diff | a11y | Status |', '| --- | --- | --- | --- | --- | --- |');
+    for (const result of scenes) lines.push(`| ${escapeCell(result.scene!)} | \`${escapeCell(result.route)}\` | ${escapeCell(result.viewport)} | ${result.diffPercent === null ? '—' : formatPercent(result.diffPercent)} | ${summarizeA11y(result.a11y)} | ${result.blocked ? '⚠️ blocked' : statusLabel(result.status)} |`);
+    lines.push('');
+  }
   const detailed = results.filter(
     (result) =>
+      Boolean(result.scene) ||
       result.status === "error" ||
       result.status === "changed" ||
       (result.a11y?.regressions.length ?? 0) > 0,
@@ -118,7 +128,7 @@ export function buildReportMarkdown(
     lines.push("");
     for (const result of [...detailed].sort(sortResults)) {
       lines.push(
-        `### \`${result.route}\` · ${result.viewport} — ${
+        `### ${result.scene ? `Scene: ${escapeCell(result.scene)} · ` : ""}\`${result.route}\` · ${result.viewport} — ${
           result.diffPercent === null ? "capture failed" : `${formatPercent(result.diffPercent)} changed`
         }`,
       );
@@ -179,7 +189,7 @@ export function buildReportMarkdown(
     lines.push('## axe accessibility delta', '');
     for (const result of axeResults) {
       const axe = result.axe!;
-      lines.push(`### ${result.route} (${result.viewport})`, '');
+      lines.push(`### ${result.scene ? `Scene: ${escapeCell(result.scene)} · ` : ""}${result.route} (${result.viewport})`, '');
       if (axe.before.status !== 'ok' || axe.after.status !== 'ok') {
         lines.push(`Skipped: base ${axe.before.reason ?? axe.before.status}; head ${axe.after.reason ?? axe.after.status}`, '');
         continue;
@@ -246,3 +256,5 @@ export async function writeReport(
   await writeFile(jsonPath, buildReportJson(meta, results), "utf8");
   return { markdownPath, jsonPath };
 }
+
+function escapeCell(value: string): string { return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\|/g, "&#124;").replace(/`/g, "&#96;").replace(/[\r\n]/g, " "); }

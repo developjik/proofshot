@@ -108,6 +108,7 @@ jobs:
             --out proofshot-out
 
       - name: Upload evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: proofshot-report

@@ -1,0 +1,50 @@
+{
+  "routes": [
+    "/"
+  ],
+  "scenes": [
+    {
+      "name": "modal",
+      "route": "/",
+      "steps": [
+        {
+          "action": "click",
+          "selector": "#open-details"
+        },
+        {
+          "action": "wait",
+          "selector": "[role=dialog]"
+        }
+      ],
+      "expect": "[role=dialog]"
+    },
+    {
+      "name": "error",
+      "route": "/",
+      "steps": [
+        {
+          "action": "fill",
+          "selector": "input[name=email]",
+          "value": "invalid"
+        },
+        {
+          "action": "press",
+          "selector": "input[name=email]",
+          "value": "Enter"
+        }
+      ],
+      "expect": "[role=alert]"
+    },
+    {
+      "name": "empty",
+      "route": "/",
+      "steps": [
+        {
+          "action": "click",
+          "text": "Clear filters"
+        }
+      ],
+      "expect": "[data-state=empty]"
+    }
+  ]
+}

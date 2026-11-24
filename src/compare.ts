@@ -13,8 +13,9 @@ import {
   type ReportStats,
 } from "./report";
 import { discoverRouterRoutes, detectNextProject, inferRoutes } from "./routes";
-import type { ProofshotConfig, ProofshotMeta, ViewportSpec } from "./types";
-import { formatPercent, isUrl, normalizeRoute, routeArtifactId, uniqueBy } from "./util";
+import { normalizeScenes } from './scenes';
+import type { SceneSpec, ProofshotConfig, ProofshotMeta, ViewportSpec } from "./types";
+import { formatPercent, isUrl, normalizeRoute, routeArtifactId, sceneArtifactId, uniqueBy } from "./util";
 
 export type FailOn = "change" | "a11y" | "error";
 
@@ -27,6 +28,7 @@ export interface CompareOptions {
   baseRef?: string;
   headRef?: string;
   routes?: string[];
+  scenes?: SceneSpec[];
   configPath?: string;
   outDir?: string;
   threshold?: number;
@@ -91,6 +93,8 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
     );
   }
 
+  const scenes = normalizeScenes(options.scenes ?? config.scenes ?? []).map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => routes.includes(scene.route));
+
   await mkdir(outDir, { recursive: true });
 
   log(`proofshot: base ${describeSource(base)} · head ${describeSource(head)}`);
@@ -100,6 +104,7 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
     captureSide({
       target: base,
       routes,
+      scenes,
       viewports,
       outDir,
       side: "base",
@@ -112,6 +117,7 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
     captureSide({
       target: head,
       routes,
+      scenes,
       viewports,
       outDir,
       side: "head",
@@ -130,17 +136,19 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
   }
 
   const results: ComparisonResult[] = [];
-  for (const route of routes) {
+  for (const job of [...routes.map(route => ({ route, scene: undefined as string | undefined })), ...scenes.map(scene => ({ route: scene.route, scene: scene.name }))]) {
+    const { route, scene } = job;
     for (const viewport of viewports) {
       results.push(
         await comparePair({
           route,
+          scene,
           viewport: viewport.name,
           base: baseSide.captures.find(
-            (capture) => capture.route === route && capture.viewport === viewport.name,
+            (capture) => capture.route === route && capture.scene === scene && capture.viewport === viewport.name,
           ),
           head: headSide.captures.find(
-            (capture) => capture.route === route && capture.viewport === viewport.name,
+            (capture) => capture.route === route && capture.scene === scene && capture.viewport === viewport.name,
           ),
           outDir,
           thresholdPercent,
@@ -248,7 +256,7 @@ function resolveRoutes(input: {
         `Route ${candidate.route} needs param(s) ${applied.unresolved.join(", ")}; captured as-is.`,
       );
     }
-    return { ...candidate, route: applied.route };
+    return { ...candidate, route: normalizeRoute(applied.route) };
   });
 
   const unique = uniqueBy(resolved, (candidate) => candidate.route);
@@ -257,15 +265,17 @@ function resolveRoutes(input: {
 
 async function comparePair(input: {
   route: string;
+  scene?: string;
   viewport: string;
   base?: PageCapture;
   head?: PageCapture;
   outDir: string;
   thresholdPercent: number;
 }): Promise<ComparisonResult> {
-  const { route, viewport, base, head, outDir, thresholdPercent } = input;
+  const { route, scene, viewport, base, head, outDir, thresholdPercent } = input;
   const result: ComparisonResult = {
     route,
+    ...(scene ? { scene } : {}),
     viewport,
     status: "unchanged",
     diffPercent: null,
@@ -287,6 +297,7 @@ async function comparePair(input: {
   const error = base?.error ?? head?.error;
   if (error || !base?.screenshotPath || !head?.screenshotPath) {
     result.status = "error";
+    if (base?.blocked || head?.blocked) result.blocked = true;
     result.error = error ?? "screenshot missing for one side";
   } else {
     const diff = comparePngs(
@@ -301,7 +312,8 @@ async function comparePair(input: {
     result.sizes = { before: diff.before, after: diff.after };
     result.status = diff.diffPercent > thresholdPercent ? "changed" : "unchanged";
     if (diff.changedPixels > 0) {
-      const diffName = `${routeArtifactId(route)}-${viewport}-diff.png`;
+      const artifact = scene ? sceneArtifactId(route, scene) : routeArtifactId(route);
+      const diffName = `${artifact}-${viewport}-diff.png`;
       await writeFile(resolve(outDir, diffName), diff.diffPng);
       result.images.diff = diffName;
     }

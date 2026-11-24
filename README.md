@@ -318,3 +318,12 @@ execution. Object-style route inference retains its existing limited support.
 The nested-router browser fixture uses isolated, lockfile-pinned React and React
 Router test dependencies. Its test runs `npm ci --ignore-scripts` in that fixture;
 these packages are not dependencies of the published proofshot CLI.
+
+## Interaction scenes
+
+Configure optional `scenes` to capture modal, error, empty or other UI states after
+click/fill/press/wait steps. Both revisions run the same steps, each scene has its
+own a11y delta, and blocked scenes do not stop other captures. Route-only users keep
+the existing output. See [scene setup and safety](docs/scenes.md) and the
+[example configuration](docs/scenes.example.json). Use a disposable test environment:
+these steps are real UI actions, not a dry run.
