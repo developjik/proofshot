@@ -85,3 +85,11 @@ it('preserves the post-action scroll position for viewport-only scenes', async (
   let blue = 0; for(let i=0;i<fullImage.data.length;i+=4)if(fullImage.data[i]!<20&&fullImage.data[i+1]!<20&&fullImage.data[i+2]!>240)blue++;
   expect(blue).toBeGreaterThan(10000);
 }, 30000);
+
+it('captures scenes when CSP forbids inline styles and scripts', async () => {
+  const cwd = await mkdtemp(join(tmpdir(), 'proofshot-scenes-csp-'));
+  const site = join(cwd, 'site'); await mkdir(site);
+  await writeFile(join(site, 'index.html'), `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'none'; script-src 'none'"><h1 id="ready">CSP scene</h1>`);
+  const result = await runCompare({ cwd, base: site, head: site, routes: ['/'], scenes: [{ name: 'CSP', route: '/', steps: [{ action: 'wait', selector: '#ready' }], expect: '#ready' }], viewports: [{ name: 'desktop', width: 700, height: 500 }], settleMs: 0 });
+  expect(result.results.find(item => item.scene)?.status).toBe('unchanged');
+}, 30000);
