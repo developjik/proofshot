@@ -1,3 +1,4 @@
+import { parse } from "@babel/parser";
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type {
@@ -396,97 +397,125 @@ export function stripComments(source: string): string {
 export function parseRouterSource(source: string, file: string): RouterRoute[] {
   const routes: RouterRoute[] = [];
 
-  // Scan complete Route tags, respecting quoted attributes and JSX expressions.
-  // A regex ending at the first > truncates element={<Layout />} and loses
-  // both nesting and self-closing information.
-  const stack: Array<{ route: string; component?: string }> = [];
-  let cursor = 0;
   const unsupported = (): never => {
     throw new Error(
       `Cannot infer static React Router routes in ${file}; set explicit routes in .proofshot.json or --routes.`,
     );
   };
-  while (cursor < source.length) {
-    const c = source[cursor];
-    if (c === '"' || c === "'" || c === "`") {
-      const quote = c;
-      cursor++;
-      while (cursor < source.length) {
-        const ch = source[cursor++];
-        if (ch === "\\") cursor++;
-        else if (ch === quote) break;
-      }
-      continue;
-    }
-    if (source.startsWith("//", cursor)) {
-      while (cursor < source.length && source[cursor] !== "\n") cursor++;
-      continue;
-    }
-    if (source.startsWith("/*", cursor)) {
-      const end = source.indexOf("*/", cursor + 2);
-      cursor = end < 0 ? source.length : end + 2;
-      continue;
-    }
-    const start = /^<(\/?)Route(?=[\s/>])/.exec(source.slice(cursor));
-    if (!start) {
-      cursor++;
-      continue;
-    }
-    const closing = start[1] === "/";
-    let end = cursor + start[0].length,
-      depth = 0,
-      quote = "";
-    for (; end < source.length; end++) {
-      const ch = source[end]!;
-      if (quote) {
-        if (ch === "\\") end++;
-        else if (ch === quote) quote = "";
-        continue;
-      }
-      if (ch === '"' || ch === "'" || ch === "`") {
-        quote = ch;
-        continue;
-      }
-      if (ch === "{") depth++;
-      else if (ch === "}") depth--;
-      else if (ch === ">" && depth === 0) break;
-    }
-    if (end === source.length) unsupported();
-    const attrs = source.slice(cursor + start[0].length, end);
-    cursor = end + 1;
-    if (closing) {
-      if (!stack.length) unsupported();
-      stack.pop();
-      continue;
-    }
-    if (/\{\s*\.\.\./.test(attrs)) unsupported();
-    const declared = readPathAttribute(attrs);
-    if (/\bpath\s*=/.test(attrs) && declared === null) unsupported();
-    const parent = stack.at(-1)?.route ?? "/";
-    const index = /\bindex(?:\s|=|$)/.test(attrs);
+  type Node = { type?: string; [key: string]: unknown };
+  const node = (v: unknown): Node =>
+    v !== null && typeof v === "object" ? (v as Node) : {};
+  const name = (v: unknown): string | undefined => {
+    const n = node(v);
+    return typeof n.name === "string" ? n.name : undefined;
+  };
+  const literal = (v: unknown): string | undefined => {
+    const n = node(v);
+    if (n.type === "StringLiteral") return n.value as string;
+    if (n.type === "JSXExpressionContainer") return literal(n.expression);
     if (
-      index &&
-      /\bindex\s*=/.test(attrs) &&
-      !/\bindex\s*=\s*\{\s*true\s*\}/.test(attrs)
-    )
-      unsupported();
-    const child = index ? "" : (declared ?? "");
+      n.type === "TemplateLiteral" &&
+      Array.isArray(n.expressions) &&
+      !n.expressions.length
+    ) {
+      return ((n.quasis as Node[])[0]?.value as { cooked?: string })?.cooked;
+    }
+    return undefined;
+  };
+  const component = (v: unknown): string | undefined => {
+    const n = node(v);
+    if (n.type === "JSXExpressionContainer") return component(n.expression);
+    if (n.type === "JSXElement") return name(node(n.openingElement).name);
+    return name(n);
+  };
+  const visited = new Set<object>();
+  const visit = (value: unknown, parent = "/"): void => {
+    if (!value || typeof value !== "object" || visited.has(value)) return;
+    visited.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, parent);
+      return;
+    }
+    const n = node(value);
     if (
-      child.startsWith("/") &&
-      parent !== "/" &&
-      child !== parent &&
-      !child.startsWith(parent + "/")
-    )
-      unsupported();
-    const route = child.startsWith("/")
-      ? normalizeRoute(child)
-      : normalizeRoute(`${parent}/${child}`);
-    const component = readComponentAttribute(attrs);
-    if (declared !== null || index || component)
-      routes.push({ route, component, file });
-    if (!/\/\s*$/.test(attrs)) stack.push({ route, component });
+      n.type === "JSXElement" &&
+      name(node(n.openingElement).name) === "Route"
+    ) {
+      const opening = node(n.openingElement),
+        attrs = opening.attributes as Node[];
+      if (attrs.some((a) => a.type === "JSXSpreadAttribute")) unsupported();
+      const attr = (key: string) => attrs.find((a) => name(a.name) === key);
+      const p = attr("path"),
+        declared = p ? literal(p.value) : undefined;
+      if (p && declared === undefined) unsupported();
+      const indexAttr = attr("index");
+      let index = false;
+      if (indexAttr) {
+        const v = node(indexAttr.value);
+        if (indexAttr.value == null) index = true;
+        else if (
+          v.type === "JSXExpressionContainer" &&
+          node(v.expression).type === "BooleanLiteral"
+        )
+          index = node(v.expression).value === true;
+        else unsupported();
+      }
+      const prefix = parent.replace(/\/\*$/, "") || "/";
+      const child = declared ?? "";
+      const requiredPrefix = normalizeRoute(
+        prefix
+          .split("/")
+          .filter((s) => !s.endsWith("?"))
+          .join("/"),
+      );
+      if (
+        child.startsWith("/") &&
+        prefix !== "/" &&
+        child !== prefix &&
+        !child.startsWith(prefix + "/") &&
+        !(
+          prefix.includes("?") &&
+          (requiredPrefix === "/" ||
+            child === requiredPrefix ||
+            child.startsWith(requiredPrefix + "/"))
+        )
+      ) {
+        // Optional parent segments cannot be expanded safely here.
+        unsupported();
+      }
+      const route = child.startsWith("/")
+        ? normalizeRoute(child)
+        : normalizeRoute(`${prefix}/${child}`);
+      const element = attr("element") ?? attr("Component") ?? attr("component");
+      const comp = element ? component(element.value) : undefined;
+      if ((declared !== undefined || index) && !route.includes("*"))
+        routes.push({ route, component: comp, file });
+      visit(n.children, route);
+      return;
+    }
+    for (const [key, v] of Object.entries(n))
+      if (!["loc", "start", "end", "extra", "comments", "tokens"].includes(key))
+        visit(v, parent);
+  };
+  let ast: unknown;
+  try {
+    ast = parse(source, {
+      sourceType: "unambiguous",
+      plugins: ["jsx", "typescript"],
+      errorRecovery: false,
+      allowReturnOutsideFunction: true,
+    });
+  } catch {
+    try {
+      ast = parse(`<>${source}</>`, {
+        sourceType: "module",
+        plugins: ["jsx", "typescript"],
+      });
+    } catch {
+      if (/<Route(?=[\s/>])/.test(source)) unsupported();
+    }
   }
-  if (stack.length) unsupported();
+  if (ast) visit(ast);
   let match: RegExpExecArray | null;
 
   // Object style: { path: "/pricing", element: <Pricing /> } or { path, Component }
