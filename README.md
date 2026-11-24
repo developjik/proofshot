@@ -312,7 +312,7 @@ and pathless layout routes add no segment. Nested absolute paths must start
 with their parent's path, as React Router requires. Dynamic `path` expressions,
 spread route attributes and malformed Route nesting stop inference with advice
 to set `.proofshot.json` `routes` or pass `--routes`, rather than guessing a child
-URL without its parent. This is a static JSX scanner, not arbitrary JavaScript
+URL without its parent. This uses a Node20-compatible Babel7 JSX parser, not arbitrary JavaScript
 execution. Object-style route inference retains its existing limited support.
 
 The nested-router browser fixture uses isolated, lockfile-pinned React and React
