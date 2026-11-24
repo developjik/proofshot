@@ -12,7 +12,7 @@ test('axe delta separates new and existing violations by rule and selector',()=>
  expect(computeAxeDelta({status:'skipped',reason:'missing',issues:[]},next).regressed).toBe(false);
 });
 test('unsupported page reports skipped with its reason',async()=>{
- expect(await captureAxe((()=>{const frame={addScriptTag:async()=>{throw new Error('blocked script')}};return {frames:()=>[frame],mainFrame:()=>frame};})() as never)).toMatchObject({status:'skipped',reason:expect.stringContaining('blocked script')});
+ expect(await captureAxe((()=>{const frame={parentFrame:()=>null,addScriptTag:async()=>{throw new Error('blocked script')}};return {frames:()=>[frame],mainFrame:()=>frame};})() as never)).toMatchObject({status:'skipped',reason:expect.stringContaining('blocked script')});
 });
 test('missing optional dependency reports skipped without touching page',async()=>{
  const cwd=await mkdtemp(join(tmpdir(),'proofshot-noaxe-'));try{expect(await captureAxe({} as never,cwd)).toMatchObject({status:'skipped',reason:expect.stringContaining('not installed')});}finally{await rm(cwd,{recursive:true,force:true});}
@@ -41,11 +41,11 @@ test('incomplete head result is not counted as fixed',()=>{
 });
 test('axe injects every frame and reports iframe violations',async()=>{
  const {chromium}=await import('playwright');const {createServer}=await import('node:http');
- const server=createServer((req,res)=>{res.setHeader('content-type','text/html');res.end(req.url==='/child'?'<html lang="en"><title>Inside</title><main><img id="missing" width="100" height="100" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></main></html>':'<html lang="en"><title>Frames</title><main><h1>Frames</h1><iframe title="Embedded" src="/child"></iframe></main>');});
+ const server=createServer((req,res)=>{res.setHeader('content-type','text/html');res.end(req.url==='/child'?'<html lang="en"><title>Inside</title><main><img id="missing" width="100" height="100" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></main></html>':'<html lang="en"><title>Frames</title><main><h1>Frames</h1><section><iframe title="Embedded" src="/child"></iframe></section><aside><iframe title="Second" src="/child"></iframe></aside></main>');});
  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));const addr=server.address();if(!addr||typeof addr==='string')throw new Error('port');
  const browser=await chromium.launch({executablePath:process.env.PROOFSHOT_CHROMIUM_PATH||undefined,headless:true,args:['--no-sandbox']});
- try{const page=await browser.newPage();await page.goto(`http://127.0.0.1:${addr.port}`);await page.frameLocator('iframe').locator('#missing').waitFor();
- const result=await captureAxe(page);expect(result.status).toBe('ok');expect(result.issues).toContainEqual(expect.objectContaining({rule:'image-alt'}));expect(result.issues.find(x=>x.rule==='image-alt')?.target.length).toBeGreaterThan(1);
+ try{const page=await browser.newPage();await page.goto(`http://127.0.0.1:${addr.port}`);await page.frameLocator('iframe').first().locator('#missing').waitFor();
+ const result=await captureAxe(page);expect(result.status).toBe('ok');expect(result.issues).toContainEqual(expect.objectContaining({rule:'image-alt'}));expect(result.issues.find(x=>x.rule==='image-alt')?.target.length).toBeGreaterThan(1);const targets=result.issues.filter(x=>x.rule==='image-alt').map(x=>JSON.stringify(x.target));expect(new Set(targets).size).toBe(2);
  }finally{await browser.close();await new Promise<void>(resolve=>server.close(()=>resolve()));}
 },20000);
 
@@ -64,3 +64,7 @@ test('blocked child frame preserves top-level violations and marks audit partial
  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));const addr=server.address();if(!addr||typeof addr==='string')throw new Error('port');const browser=await chromium.launch({executablePath:process.env.PROOFSHOT_CHROMIUM_PATH||undefined,headless:true,args:['--no-sandbox']});
  try{const page=await browser.newPage();await page.goto(`http://127.0.0.1:${addr.port}`);const result=await captureAxe(page);expect(result.status).toBe('ok');expect(result.partial).toBe(true);expect(result.issues).toContainEqual(expect.objectContaining({rule:'image-alt',target:['#top-missing']}));}finally{await browser.close();await new Promise<void>(resolve=>server.close(()=>resolve()));}
 },20000);
+
+test('previously unaudited frame violations are not called new while top-level remains comparable',()=>{
+ const issue={rule:'image-alt',impact:'critical',target:['#child','#image'],detail:'alt'};const top={...issue,target:['#top']};const delta=computeAxeDelta({status:'ok',issues:[],partial:true,unauditedFrames:[['#child']]},{status:'ok',issues:[issue,top]});expect(delta.regressions).toEqual([top]);
+});
