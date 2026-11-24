@@ -115,5 +115,5 @@ export function sceneArtifactId(route: string, name: string): string {
 
 /** Browser-equivalent local route identity, without decoding encoded separators. */
 export function routeIdentity(route: string): string {
-  return new URL(normalizeRoute(route), 'http://proofshot.invalid').href;
+  return new URL(normalizeRoute(route), 'http://proofshot.invalid').href.replace(/%[0-9a-f]{2}/gi, escape => escape.toUpperCase());
 }
