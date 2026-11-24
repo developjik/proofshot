@@ -242,6 +242,7 @@ function resolveRoutes(input: {
     if (changed.warning) input.notes.push(changed.warning);
     const routerRoutes = discoverRouterRoutes(input.cwd);
     candidates = inferRoutes(changed.files, {
+      gitPaths: true,
       config: input.config,
       routerRoutes,
       nextProject: detectNextProject(input.cwd),
