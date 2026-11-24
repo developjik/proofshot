@@ -246,6 +246,7 @@ function summaryTable(
     status: string;
     diffPercent: number | null;
     a11y?: { regressions: unknown[]; fixes: unknown[] } | null;
+    axe?: { regressions: unknown[]; fixes: unknown[] };
     consoleErrors: { before: number; after: number };
   }>,
 ): string {
@@ -258,9 +259,7 @@ function summaryTable(
   for (const result of results) {
     const diff =
       result.diffPercent === null ? "—" : `${result.diffPercent.toFixed(2)}%`.padStart(9);
-    const net = result.a11y
-      ? result.a11y.regressions.length - result.a11y.fixes.length
-      : 0;
+    const net = (result.a11y ? result.a11y.regressions.length - result.a11y.fixes.length : 0) + (result.axe ? result.axe.regressions.length - result.axe.fixes.length : 0);
     const a11y = net === 0 ? "0".padStart(4) : `${net > 0 ? "+" : ""}${net}`.padStart(4);
     const consoleCell = `${result.consoleErrors.before}→${result.consoleErrors.after}`.padStart(7);
     lines.push(
