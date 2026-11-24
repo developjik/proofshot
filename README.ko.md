@@ -240,3 +240,9 @@ npm run demo             # 픽스처로 proofshot-out/report.md 작성
 E2E 스위트는 `demo/`를 상대로 실제 캡처/비교/a11y 파이프라인을 돌립니다 — 바뀌는 홈 페이지(새 히어로, 색, 아이콘 전용 버튼, alt 없는 이미지, 제목 단계 점프, 콘솔 에러)와 그대로인 pricing 페이지입니다. 바뀜/안 바뀜 구분, a11y 규칙 각각, diff 이미지, 리포트를 검증합니다.
 
 MIT © [Jung Ingwon (developjik)](https://github.com/developjik)
+
+## 선택적 axe-core 검사 (DEV-125)
+
+실행할 프로젝트에 `npm install --save-dev axe-core`로 설치한 뒤 `proofshot compare --base dist-before --head dist-after --routes / --a11y axe --fail-on a11y`를 실행하세요. 기본은 off이며 옵션이 없으면 기존 경량검사와 보고서 출력은 그대로입니다. axe는 스크린샷 픽셀이 아니라 실제DOM에서 실행합니다.
+
+report.json의 axe.regressions/existing/fixes와 PR코멘트 본문인 report.md에 신규/기존 위반, 규칙ID, 영향도, 셀렉터 경로를 기록합니다. 기준선에 없던 신규위반만 a11y 실패조건에 들어갑니다. 코멘트를 자동게시하지 않습니다. axe 미설치·지원불가·주입제한은 skip으로 표시하며 검사성공으로 간주하지 않습니다. 한쪽이 skip이면 기준선 차이를 판단하지 않습니다. 불확정 검사는 수동검토 수로 남깁니다. axe만으로 전체WCAG준수나 모든 키보드/포커스 동작을 보장하지는 않습니다. 프로그램 API는 runCompare({axe:true})를 사용합니다.
