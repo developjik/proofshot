@@ -297,3 +297,9 @@ Missing axe-core, injection restrictions, or unsupported pages are explicitly ma
 When axe is enabled, Markdown is a bounded PR summary (at most 60k characters, up to 20 details per category); the JSON artifact retains every issue. Reports without axe are unchanged. Unavailable child frames mark the audit partial: unmeasured baseline frame issues are not called new, and partial head audits never claim fixes. Frame-local scans omit top-level-only document title/main/heading rules.
 
 Axe delta identity is rule + selector path, including the full ancestor path for ID-less frames. Moving an ID-less frame or changing selectors can appear as fixed/new even if content is unchanged, as with any selector-based baseline. Give stable unique IDs to audited frames or refresh the baseline after intentional layout moves. Unmeasured baseline frame issues are listed as Unclassified rather than silently discarded.
+
+## Development baseline (DEV-128)
+
+Use Node.js 22.12.0 (`.nvmrc`) for development and CI. Vitest 5.1.1 requires Node 22.12+ on its supported release lines; Node 20.19 is outside its declared development support range. It may execute there, but CI does not treat that as supported test-runner usage. This development requirement does not change the package engine declaration. Runtime compatibility must be checked using the built package, separately from the test runner. TypeScript 7.0.2 is the development compiler baseline.
+
+For early Node20 compatibility, build bundles pixelmatch ESM as CJS and includes its original license. Consumer engines are unchanged.

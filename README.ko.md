@@ -246,3 +246,9 @@ MIT © [Jung Ingwon (developjik)](https://github.com/developjik)
 실행할 프로젝트에 `npm install --save-dev axe-core`로 설치한 뒤 `proofshot compare --base dist-before --head dist-after --routes / --a11y axe --fail-on a11y`를 실행하세요. 기본은 off이며 옵션이 없으면 기존 경량검사와 보고서 출력은 그대로입니다. axe는 스크린샷 픽셀이 아니라 실제DOM에서 실행합니다.
 
 report.json의 axe.regressions/existing/fixes와 PR코멘트 본문인 report.md에 신규/기존 위반, 규칙ID, 영향도, 셀렉터 경로를 기록합니다. 기준선에 없던 신규위반만 a11y 실패조건에 들어갑니다. 코멘트를 자동게시하지 않습니다. axe 미설치·지원불가·주입제한은 skip으로 표시하며 검사성공으로 간주하지 않습니다. 한쪽이 skip이면 기준선 차이를 판단하지 않습니다. 불확정 검사는 수동검토 수로 남깁니다. axe만으로 전체WCAG준수나 모든 키보드/포커스 동작을 보장하지는 않습니다. 프로그램 API는 runCompare({axe:true})를 사용합니다.
+
+## 개발 기준선 (DEV-128)
+
+개발과 CI는 Node.js 22.12.0(`.nvmrc`) 이상을 사용합니다. Vitest 5.1.1의 공식 지원 범위에는 Node 20.19가 없습니다. 실행이 된다는 이유로 공식 지원이라고 부르지 않습니다. 패키지 사용자의 기존 engines는 유지합니다. Node 20 지원 패키지는 테스트 러너 없이 빌드한 tarball의 운영 의존성만 설치하고 CLI/import를 별도로 검사합니다. 개발 TypeScript 기준은 7.0.2입니다.
+
+Node20 초기 버전 호환성을 위해 pixelmatch ESM을 빌드할 때 CJS로 번들링하고 원본 라이선스를 포함합니다. 사용자 engines는 그대로 유지합니다.
