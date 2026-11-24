@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Route matching retains Unicode component keys and rejects empty-key matches. Git literal backslashes do not invent directory separators; existing Windows-style API input remains supported. Static HTML filename segments are URL-encoded, and human-readable route tables escape terminal control characters. Filename decoding supports valid UTF-8 names; arbitrary non-UTF-8 Git pathname bytes are not supported.
+
 - Git changed-file discovery now reads NUL-delimited pathnames in both merge-base and direct fallback diffs, preserving Korean names, whitespace, tabs and newlines instead of passing display-quoted strings to route inference (DEV-158).
 
 ## 0.1.1
