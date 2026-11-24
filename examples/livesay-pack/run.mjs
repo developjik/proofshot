@@ -83,13 +83,15 @@ export async function runPack(config, livesay) {
       try { await livesay.installProbe(page); } catch { failures.push({ side: capture.side, scene: capture.scene, reason: 'probe-install-failed' }); }
     },
     async beforeScene(page, capture) {
-      try { const snapshot = await livesay.readProbeSnapshot(page); baselines.set(key(capture), { ids: snapshot.answers.map(a => a.id), timeOrigin: await page.evaluate(() => performance.timeOrigin) }); } catch {}
+      const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+      baselines.set(key(capture), { ids: null, timeOrigin });
+      try { const snapshot = await livesay.readProbeSnapshot(page); baselines.set(key(capture), { ids: snapshot.answers.map(a => a.id), timeOrigin }); } catch {}
     },
     async beforeScreenshot(page, capture) {
       if (!capture.scene) return;
       try {
         const oldIds = baselines.get(key(capture));
-        if (!oldIds) throw new Error('scene start snapshot missing');
+        if (!oldIds || !oldIds.ids) throw new Error('scene start snapshot missing');
         const observationStart = await page.evaluate(() => performance.timeOrigin + performance.now());
         await page.waitForFunction(observationComplete, {ids: oldIds.ids, baselineOrigin: oldIds.timeOrigin, grace: graceMs, observationStart}, { timeout: 1500 + graceMs * 3, polling: 50 });
         const snapshot = await livesay.readProbeSnapshot(page);
