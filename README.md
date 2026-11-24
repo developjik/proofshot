@@ -228,6 +228,11 @@ proofshot-out/
   <route>-<vp>-diff.png  # only when pixels changed
 ```
 
+`<route>` is a readable slug (up to 64 characters) plus the SHA-256 hash of the normalized
+route. This keeps `/` and `/root`, nested and hyphenated routes, and Unicode routes distinct.
+Names are stable when route order changes. Consumers should use the image paths in the report
+rather than reconstructing filenames. Existing screenshots need to be regenerated after this change.
+
 Before/after/diff images are referenced by relative name from `report.md`, so the artifact is
 self-contained. GitHub PR comments cannot inline files from an artifact — download the artifact
 (or commit the folder) when you need to open the images.
