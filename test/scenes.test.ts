@@ -71,11 +71,17 @@ it('uses one normalized identity after dynamic params end with a slash', async (
 it('preserves the post-action scroll position for viewport-only scenes', async () => {
   const cwd = await mkdtemp(join(tmpdir(), 'proofshot-scenes-scroll-'));
   const site = join(cwd, 'site'); await mkdir(site);
-  await writeFile(join(site, 'index.html'), `<h1>Top</h1><div style="height:1800px"></div><button id="show" onclick="document.querySelector('#panel').hidden=false">Show result</button><div id="panel" hidden style="height:100px;width:100%;background:rgb(255,0,0)">Result</div>`);
+  await writeFile(join(site, 'index.html'), `<style>html{scroll-behavior:smooth}</style><header style="position:fixed;top:0;left:0;background:blue;height:20px;width:100%">Fixed</header><h1>Top</h1><div style="height:1800px"></div><button id="show" onclick="document.querySelector('#panel').hidden=false">Show result</button><div id="panel" hidden style="height:100px;width:100%;background:rgb(255,0,0)">Result</div>`);
   const result = await runCompare({ cwd, base: site, head: site, routes: ['/'], scenes: [{ name: 'below fold', route: '/', steps: [{ action: 'click', selector: '#show' }], expect: '#panel' }], viewports: [{ name: 'desktop', width: 700, height: 500 }], fullPage: false, settleMs: 0 });
   const capture = result.results.find(item => item.scene)!;
   expect(capture.status).toBe('unchanged');
   const png = PNG.sync.read(await readFile(join(result.outDir, capture.images.after!)));
   let red = 0; for (let i=0;i<png.data.length;i+=4) if(png.data[i]!>240&&png.data[i+1]!<20&&png.data[i+2]!<20)red++;
   expect(red).toBeGreaterThan(1000);
+  const full = await runCompare({ cwd, base: site, head: site, routes: ['/'], scenes: [{ name: 'below fold', route: '/', steps: [{ action: 'click', selector: '#show' }], expect: '#panel' }], viewports: [{ name: 'desktop', width: 700, height: 500 }], fullPage: true, settleMs: 0, outDir: 'full-report' });
+  expect(full.results.find(item => item.scene)?.status).toBe('unchanged');
+  const fullImage = PNG.sync.read(await readFile(join(full.outDir, full.results.find(item => item.scene)!.images.after!)));
+  expect(fullImage.height).toBeGreaterThan(1800);
+  let blue = 0; for(let i=0;i<fullImage.data.length;i+=4)if(fullImage.data[i]!<20&&fullImage.data[i+1]!<20&&fullImage.data[i+2]!>240)blue++;
+  expect(blue).toBeGreaterThan(10000);
 }, 30000);
