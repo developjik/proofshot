@@ -14,5 +14,6 @@ try{
  const bins=typeof pkg.bin==='string'?{[pkg.name]:pkg.bin}:pkg.bin??{};
  if(Object.keys(bins).length){for(const name of Object.keys(bins)){const help=run(join(temp,'node_modules','.bin',name),['--help'],temp);if(!help.trim())throw new Error(`${name}: installed CLI printed no help`);}}
  if(pkg.exports || pkg.main)run(process.execPath,['--input-type=module','-e',`await import(${JSON.stringify(pkg.name)});`],temp);
+ run(process.execPath,['--input-type=module','-e',`const api=await import(${JSON.stringify(pkg.name)});const p=api.solidPng(2,2,[0,0,0,255]);if(api.comparePngs(p,p).diffRatio!==0)throw new Error('pixel diff failed');`],temp);
  console.log(`${pkg.name}: production install and built runtime smoke passed on ${process.version}`);
 }finally{rmSync(temp,{recursive:true,force:true});}
