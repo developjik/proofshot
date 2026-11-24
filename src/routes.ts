@@ -103,7 +103,9 @@ export function inferRoutes(
           route.route,
           "react-router",
           file,
-          route.component
+          route.ancestors?.some(c=>componentKey(c)===componentKey(file))
+            ? `layout <${route.ancestors.find(c=>componentKey(c)===componentKey(file))}> wraps this route in ${route.file}`
+            : route.component
             ? `route element <${route.component}> is defined in ${route.file}`
             : `declared in ${route.file}`,
         );
@@ -320,7 +322,11 @@ function dedupeRouterRoutes(routes: RouterRoute[]): RouterRoute[] {
   const out: RouterRoute[] = [];
   for (const route of routes) {
     const key = `${normalizeRoute(route.route)}|${route.component ?? ""}`;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) {
+      const existing=out.find(r=>`${normalizeRoute(r.route)}|${r.component??""}`===key)!;
+      existing.ancestors=[...new Set([...(existing.ancestors??[]),...(route.ancestors??[])])];
+      continue;
+    }
     seen.add(key);
     out.push({ ...route, route: normalizeRoute(route.route) });
   }
@@ -427,7 +433,7 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
     const n = node(v);
     if (n.type === "JSXExpressionContainer") return component(n.expression);
     if (n.type === "JSXElement") return name(node(n.openingElement).name);
-    return name(n);
+    return ["undefined","null","false"].includes(name(n)??"")?undefined:name(n);
   };
   const visited = new Set<object>();
   const visit = (value: unknown, parent = "/", layouts: string[] = []): void => {
@@ -502,7 +508,7 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
   try {
     ast = parse(source, {
       sourceType: "unambiguous",
-      plugins: ["jsx", "typescript", "decorators-legacy"],
+      plugins: /\.[cm]?ts$/.test(file) ? ["typescript", "decorators-legacy"] : ["jsx", "typescript", "decorators-legacy"],
       errorRecovery: false,
       allowReturnOutsideFunction: true,
     });
@@ -510,10 +516,10 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
     try {
       ast = parse(`<>${source}</>`, {
         sourceType: "module",
-        plugins: ["jsx", "typescript", "decorators-legacy"],
+        plugins: /\.[cm]?ts$/.test(file) ? ["typescript", "decorators-legacy"] : ["jsx", "typescript", "decorators-legacy"],
       });
     } catch {
-      if (/<Route(?=[\s/>])/.test(source)) unsupported();
+      if (/<Route(?=[\s/>])/.test(stripComments(source))) unsupported();
     }
   }
   if (ast) visit(ast);
