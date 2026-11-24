@@ -242,7 +242,7 @@ async function commandRoutes(
   });
 
   if (parsed.flags.has("json")) {
-    const scenes = config.scenes?.map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => candidates.some(candidate => routeIdentity(applyRouteParams(candidate.route, config.params).route) === routeIdentity(scene.route)));
+    const scenes = config.scenes?.map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => candidates.some(candidate => routeIdentity(applyRouteParams(candidate.route, config.params).route, candidate.framework === "static") === routeIdentity(scene.route, candidate.framework === "static")));
     ctx.out(
       JSON.stringify(
         { range: diff.range, files: diff.files, routes: candidates, ...(scenes?.length ? { scenes } : {}) },
@@ -278,7 +278,7 @@ async function commandRoutes(
     );
   }
   if (config.scenes?.length) {
-    for (const scene of config.scenes.map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => candidates.some(candidate => routeIdentity(applyRouteParams(candidate.route, config.params).route) === routeIdentity(scene.route)))) ctx.out(`scene: ${scene.name} (${scene.route})`);
+    for (const scene of config.scenes.map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => candidates.some(candidate => routeIdentity(applyRouteParams(candidate.route, config.params).route, candidate.framework === "static") === routeIdentity(scene.route, candidate.framework === "static")))) ctx.out(`scene: ${scene.name} (${scene.route})`);
   }
   return 0;
 }
