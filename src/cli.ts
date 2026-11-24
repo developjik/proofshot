@@ -475,5 +475,5 @@ export function resolveViewports(names: string[]): ViewportSpec[] {
 
 /** Keep untrusted filenames from emitting terminal control sequences. JSON mode stays lossless. */
 function terminalSafe(value: string): string {
-  return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, char => JSON.stringify(char).slice(1,-1));
+  return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4,'0')}`);
 }
