@@ -29,7 +29,7 @@ export async function captureAxe(page: Page, cwd = process.cwd()): Promise<AxeSn
       snapshot.issues.push(...issues(result.violations));snapshot.uncertain!.push(...issues(result.incomplete));snapshot.incomplete!+=result.incomplete.length;
     } catch(error) {
       if(frame===page.mainFrame())return {status:'skipped',reason:`axe unsupported or unavailable: ${error instanceof Error?error.message.split('\n')[0]:String(error)}`,issues:[]};
-      (snapshot.unauditedFrames??=[]).push(prefix);snapshot.partial=true;snapshot.reason='One or more frames could not be audited; fixes are not inferred';
+      (snapshot.unauditedFrames??=[]).push(prefix);snapshot.partial=true;snapshot.reason='One or more frames could not be audited; comparisons involving those frames are uncertain';
     }
   }
   return snapshot;
@@ -38,7 +38,7 @@ const key = (issue: AxeIssue) => JSON.stringify([issue.rule, issue.target]);
 export function computeAxeDelta(before: AxeSnapshot, after: AxeSnapshot): AxeDelta {
   if (before.status !== 'ok' || after.status !== 'ok') return { before, after, regressions: [], existing: [], fixes: [], regressed: false };
   const old = new Set(before.issues.map(key)); const current = new Set([...after.issues, ...(after.uncertain ?? [])].map(key));
-  const unknownBefore = (issue:AxeIssue) => before.unauditedFrames?.some(prefix=>prefix.length>0 && prefix.length<issue.target.length && prefix.every((part,index)=>issue.target[index]===part));
+  const unknownBefore = (issue:AxeIssue) => before.unauditedFrames?.some(prefix=>prefix.length===0 ? issue.target.length>1 : prefix.length<issue.target.length && prefix.every((part,index)=>issue.target[index]===part));
   const regressions = after.issues.filter(issue => !old.has(key(issue)) && !unknownBefore(issue));
   return { before, after, regressions, unclassified: after.issues.filter(issue => !old.has(key(issue)) && unknownBefore(issue)), existing: after.issues.filter(issue => old.has(key(issue))), fixes: after.partial ? [] : before.issues.filter(issue => !current.has(key(issue))), regressed: regressions.length > 0 };
 }
