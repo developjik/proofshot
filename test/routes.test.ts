@@ -279,3 +279,16 @@ describe("router AST source and layout propagation",()=>{
  const r=parseRouterSource(`<Route path="/dashboard" element={null} Component={Dashboard} />`,"src/App.tsx");expect(inferRoutes(['src/pages/Dashboard.tsx'],{routerRoutes:r})[0]?.route).toBe('/dashboard');
  });
 });
+
+
+it("handles non-JSX TS assertions and ignores Route examples in comments",()=>{
+ expect(parseRouterSource(`// example <Route path="/bad" />
+const value=<string>input;`,"src/helpers.ts")).toEqual([]);
+});
+it("merges index layout ancestors when route and component keys repeat",()=>{
+ const r=parseRouterSource(`<Route path="/dashboard"><Route element={<Auth />}><Route index /></Route></Route>`,"src/App.tsx");
+ const selected=inferRoutes(['src/Auth.tsx'],{routerRoutes:r});expect(selected.map(x=>x.route)).toEqual(['/dashboard']);expect(selected[0]?.reason).toContain('Auth');
+});
+it("falls back to element when Component is undefined",()=>{
+ const r=parseRouterSource(`<Route path="/dashboard" Component={undefined} element={<Dashboard />} />`,"src/App.tsx");expect(inferRoutes(['src/pages/Dashboard.tsx'],{routerRoutes:r})[0]?.route).toBe('/dashboard');
+});
