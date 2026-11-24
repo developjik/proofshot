@@ -68,3 +68,9 @@ test('each later answer gets its own completion grace',async()=>{
  const c=await fixture(`document.querySelector('#open').onclick=()=>{const p=window.__livesayProbe;p.mark('start',{id:'first'});p.mark('done',{id:'first'});setTimeout(()=>{p.mark('start',{id:'second'});setTimeout(()=>p.mark('done',{id:'second'}),200);setTimeout(()=>document.querySelector('#result').textContent='Second completed.',1000);},700);};`);
  const pack=await runPack(c,livesay);assert.equal(pack.rows[0].status,'verified');assert.match(pack.rows[0].transcripts.head.join(' '),/Second completed/);
 });
+
+test('final action asynchronous answer is observed after earlier answer grace elapsed',async()=>{
+ const c=await fixture(`const p=window.__livesayProbe;document.querySelector('#open').onclick=()=>{p.mark('start',{id:'first'});p.mark('done',{id:'first'});setTimeout(()=>{const b=document.createElement('button');b.id='last';b.textContent='Last';b.onclick=()=>setTimeout(()=>{p.mark('start',{id:'last'});document.querySelector('#result').textContent='Last completed.';p.mark('done',{id:'last'});},400);document.body.append(b);},1500);};`);
+ c.scenes[0].steps=[{action:'click',selector:'#open'},{action:'wait',selector:'#last'},{action:'click',selector:'#last'}];
+ const pack=await runPack(c,livesay);assert.equal(pack.rows[0].status,'verified');assert.match(pack.rows[0].transcripts.head.join(' '),/Last completed/);
+});
