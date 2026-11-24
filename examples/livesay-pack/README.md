@@ -81,3 +81,12 @@ Node 20 package checks remain separate and unchanged.
 DEV-46 terminal announcement fix and DEV-47 static-server root isolation are
 present in the pinned source versions. Do not replace those sources with older
 unchecked versions. Public documentation: https://github.com/developjik/livesay
+
+Collection always observes for at least graceMs after the final scene action,
+even if an earlier action's answer already finished. Each later observed answer
+then gets the same full grace after its end. The total bounded wait is
+1,500 + 3 × graceMs milliseconds (5.1 seconds by default, 16.5 seconds at the
+maximum). Thus graceMs controls both observation time and the overall marker
+wait bound. Answers beginning after the quiet observation window are outside
+this bounded sample contract. Use an explicit final SceneSpec wait/expect for
+your app's readiness signal rather than arbitrary long asynchronous work.
