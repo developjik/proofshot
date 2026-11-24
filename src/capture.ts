@@ -180,14 +180,14 @@ async function capturePage(
     }).catch(() => undefined);
     // Scroll through the page once so lazy-loaded images and observers fire.
     await page
-      .evaluate(async () => {
+      .evaluate(async (scene) => {
         const step = Math.max(300, window.innerHeight);
         for (let y = 0; y < document.body.scrollHeight; y += step) {
-          window.scrollTo({left:0, top:y, behavior:"instant"});
+          if (scene) window.scrollTo({left:0, top:y, behavior:"instant"}); else window.scrollTo(0, y);
           await new Promise((r) => setTimeout(r, 40));
         }
-        window.scrollTo({left:0, top:0, behavior:"instant"});
-      })
+        if (scene) window.scrollTo({left:0, top:0, behavior:"instant"}); else window.scrollTo(0, 0);
+      }, Boolean(options.scene))
       .catch(() => undefined);
     await page.waitForTimeout(120);
 
