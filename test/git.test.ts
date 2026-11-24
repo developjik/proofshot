@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { changedFiles, revParse, shortSha } from '../src/git';
-import { inferRoutes } from '../src/routes';
+import { discoverRouterRoutes, inferRoutes } from '../src/routes';
 import { runCli } from '../src/cli';
 import { runCompare } from '../src/compare';
 
@@ -67,6 +67,25 @@ describe('real Git changed-file paths', () => {
     ]});
     expect(routes.map(r=>r.route)).toEqual(['/settings']);
   });
+  it('discovers full mixed Unicode object components before Git inference', () => {
+    const f=fixture();
+    mkdirSync(join(f.cwd,'src'),{recursive:true});
+    writeFileSync(join(f.cwd,'src/router.tsx'), `createBrowserRouter([{path:'/account',Component:Account설정},{path:'/help',element:<Help도움 />}])`);
+    f.git('add','--all'); f.git('commit','--quiet','-m','router');
+    const base=f.git('rev-parse','HEAD'); f.add(['src/screens/Account설정.tsx']);
+    expect(inferRoutes(changedFiles({cwd:f.cwd,baseRef:base}).files,{gitPaths:true,routerRoutes:discoverRouterRoutes(f.cwd)}).map(r=>r.route)).toEqual(['/account']);
+  });
+  it('lists and executes an unencoded Korean scene for an inferred static route', async () => {
+    const f=fixture(); f.add(['설정/index.html']);
+    const config={scenes:[{name:'korean',route:'/설정',steps:[]}]};
+    writeFileSync(join(f.cwd,'.proofshot.json'),JSON.stringify(config));
+    const lines:string[]=[];
+    await runCli(['routes','--base-ref',f.base,'--json'],{cwd:f.cwd,stdout:l=>lines.push(l)});
+    expect(JSON.parse(lines.join('\n')).scenes).toHaveLength(1);
+    const result=await runCompare({cwd:f.cwd,base:f.cwd,head:f.cwd,baseRef:f.base,outDir:join(f.cwd,'artifacts'),viewports:[{name:'small',width:400,height:400}]});
+    expect(result.stats.errors).toBe(0);
+    expect(result.results.some(r=>r.scene==='korean')).toBe(true);
+  },30000);
   it('does not match empty component keys and preserves Windows-style API inputs', () => {
     expect(inferRoutes(['src/pages/---.tsx'],{routerRoutes:[{route:'/wrong',component:'___',file:'src/App.tsx'}]}).map(r=>r.route)).not.toContain('/wrong');
     expect(inferRoutes(['app\\settings\\page.tsx']).map(r=>r.route)).toEqual(['/settings']);
