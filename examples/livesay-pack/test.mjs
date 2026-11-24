@@ -95,6 +95,6 @@ test('different document origin cannot validate even complete destination answer
  try {
  globalThis.window={__livesayProbe:{snapshot:()=>({capturedAt:9000,answers:[{id:'x',endedAt:100,outcome:'done'}]})}};
  const now=performance.timeOrigin+performance.now();
- assert.equal(observationComplete({ids:['x'],baselineOrigin:performance.timeOrigin-100,grace:1200,observationStart:now-5000}),false);
+ assert.equal(observationComplete({ids:['x'],baselineOrigin:performance.timeOrigin-100,grace:1200,observationStart:now-5000}),'document-changed');
  } finally {globalThis.window=old;}
 });
