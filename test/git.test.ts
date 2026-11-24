@@ -7,6 +7,7 @@ import { changedFiles, revParse, shortSha } from '../src/git';
 import { discoverRouterRoutes, inferRoutes } from '../src/routes';
 import { runCli } from '../src/cli';
 import { runCompare } from '../src/compare';
+import { routeIdentity } from '../src/util';
 
 const dirs: string[] = [];
 function fixture() {
@@ -77,14 +78,16 @@ describe('real Git changed-file paths', () => {
   });
   it('lists and executes an unencoded Korean scene for an inferred static route', async () => {
     const f=fixture(); f.add(['설정/index.html']);
-    const config={scenes:[{name:'korean',route:'/설정',steps:[]}]};
+    const config={scenes:[{name:'korean',route:'/설정',steps:[]},{name:'encoded',route:encodeURI('/설정').toLowerCase(),steps:[]}]};
     writeFileSync(join(f.cwd,'.proofshot.json'),JSON.stringify(config));
     const lines:string[]=[];
     await runCli(['routes','--base-ref',f.base,'--json'],{cwd:f.cwd,stdout:l=>lines.push(l)});
-    expect(JSON.parse(lines.join('\n')).scenes).toHaveLength(1);
+    expect(JSON.parse(lines.join('\n')).scenes).toHaveLength(2);
     const result=await runCompare({cwd:f.cwd,base:f.cwd,head:f.cwd,baseRef:f.base,outDir:join(f.cwd,'artifacts'),viewports:[{name:'small',width:400,height:400}]});
     expect(result.stats.errors).toBe(0);
     expect(result.results.some(r=>r.scene==='korean')).toBe(true);
+    expect(result.results.some(r=>r.scene==='encoded')).toBe(true);
+    expect(routeIdentity('/a%2fb')).not.toBe(routeIdentity('/a/b'));
   },30000);
   it('does not match empty component keys and preserves Windows-style API inputs', () => {
     expect(inferRoutes(['src/pages/---.tsx'],{routerRoutes:[{route:'/wrong',component:'___',file:'src/App.tsx'}]}).map(r=>r.route)).not.toContain('/wrong');
