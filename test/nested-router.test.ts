@@ -80,6 +80,7 @@ test("captures the inferred nested React Router child instead of the SPA fallbac
       "-c",
       "user.email=fixture@example.test",
       "commit",
+      "--no-gpg-sign",
       "-m",
       "base",
     );
@@ -94,6 +95,7 @@ test("captures the inferred nested React Router child instead of the SPA fallbac
       "-c",
       "user.email=fixture@example.test",
       "commit",
+      "--no-gpg-sign",
       "-m",
       "change settings",
     );
