@@ -185,8 +185,9 @@ export function buildReportMarkdown(
         continue;
       }
       lines.push(`New: ${axe.regressions.length}; Existing: ${axe.existing.length}; Fixed: ${axe.fixes.length}; Needs manual review: ${axe.after.incomplete ?? 0}`, '');
+      if (axe.before.partial) lines.push(`Baseline partial: ${axe.before.reason}`, '');
       if (axe.after.partial) lines.push(`Partial: ${axe.after.reason}`, '');
-      for (const [label, issues] of [['New', axe.regressions], ['Existing', axe.existing], ['Fixed', axe.fixes]] as const) {
+      for (const [label, issues] of [['New', axe.regressions], ['Existing', axe.existing], ['Fixed', axe.fixes], ['Unclassified (baseline not audited)', axe.unclassified ?? []]] as const) {
         for (const issue of issues.slice(0, 20)) lines.push(`- ${label}: ${issue.rule} (${issue.impact ?? 'unknown'}) at ${JSON.stringify(issue.target).slice(0, 200)}`);
         if (issues.length > 20) lines.push(`- ${issues.length - 20} more ${label.toLowerCase()} issues in report.json`);
       }
