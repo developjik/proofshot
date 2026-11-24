@@ -6,6 +6,7 @@ import { runCompare, type FailOn } from "./compare";
 import { changedFiles } from "./git";
 import { runInit, WORKFLOW_PATH } from "./init";
 import { detectNextProject, discoverRouterRoutes, inferRoutes } from "./routes";
+import { normalizeRoute } from './util';
 import type { ViewportSpec } from "./types";
 
 export interface CliContext {
@@ -240,7 +241,7 @@ async function commandRoutes(
   });
 
   if (parsed.flags.has("json")) {
-    const scenes = config.scenes?.map(scene => ({ ...scene, route: applyRouteParams(scene.route, config.params).route })).filter(scene => candidates.some(candidate => applyRouteParams(candidate.route, config.params).route === scene.route));
+    const scenes = config.scenes?.map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => candidates.some(candidate => normalizeRoute(applyRouteParams(candidate.route, config.params).route) === scene.route));
     ctx.out(
       JSON.stringify(
         { range: diff.range, files: diff.files, routes: candidates, ...(scenes?.length ? { scenes } : {}) },
@@ -276,7 +277,7 @@ async function commandRoutes(
     );
   }
   if (config.scenes?.length) {
-    for (const scene of config.scenes.map(scene => ({ ...scene, route: applyRouteParams(scene.route, config.params).route })).filter(scene => candidates.some(candidate => applyRouteParams(candidate.route, config.params).route === scene.route))) ctx.out(`scene: ${scene.name} (${scene.route})`);
+    for (const scene of config.scenes.map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => candidates.some(candidate => normalizeRoute(applyRouteParams(candidate.route, config.params).route) === scene.route))) ctx.out(`scene: ${scene.name} (${scene.route})`);
   }
   return 0;
 }
