@@ -127,7 +127,7 @@ async function fileIfExistsInside(filePath: string, rootReal: string): Promise<s
     if ((error as { code?: string }).code === "ROOT_ESCAPE") throw error;
     // Check the nearest existing ancestor too, so a missing file below an
     // external directory link is refused just like an existing file.
-    if ((error as { code?: string }).code === "ENOENT") {
+    if (["ENOENT", "ENOTDIR"].includes((error as { code?: string }).code ?? "")) {
       let ancestor = dirname(filePath);
       while (ancestor !== dirname(ancestor)) {
         try {
@@ -137,7 +137,7 @@ async function fileIfExistsInside(filePath: string, rootReal: string): Promise<s
           }
           break;
         } catch (parentError) {
-          if ((parentError as { code?: string }).code !== "ENOENT") throw parentError;
+          if (!["ENOENT", "ENOTDIR"].includes((parentError as { code?: string }).code ?? "")) throw parentError;
           ancestor = dirname(ancestor);
         }
       }
