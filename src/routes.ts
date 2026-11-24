@@ -310,7 +310,7 @@ export function discoverRouterRoutes(
     ) {
       continue;
     }
-    routes.push(...parseRouterSource(stripComments(source), file));
+    routes.push(...parseRouterSource(source, file));
   }
   return dedupeRouterRoutes(routes);
 }
@@ -338,7 +338,8 @@ function matchRouterRoute(
   return routerRoutes.filter(
     (route) =>
       routerFileSet.has(file) ||
-      (route.component !== undefined && componentKey(route.component) === key),
+      (route.component !== undefined && componentKey(route.component) === key) ||
+      Boolean(route.ancestors?.some(component=>componentKey(component)===key)),
   );
 }
 
@@ -429,11 +430,11 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
     return name(n);
   };
   const visited = new Set<object>();
-  const visit = (value: unknown, parent = "/"): void => {
+  const visit = (value: unknown, parent = "/", layouts: string[] = []): void => {
     if (!value || typeof value !== "object" || visited.has(value)) return;
     visited.add(value);
     if (Array.isArray(value)) {
-      for (const item of value) visit(item, parent);
+      for (const item of value) visit(item, parent, layouts);
       return;
     }
     const n = node(value);
@@ -486,22 +487,22 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
       const route = child.startsWith("/")
         ? normalizeRoute(child)
         : normalizeRoute(`${prefix}/${child}`);
-      const element = attr("element") ?? attr("Component") ?? attr("component");
-      const comp = element ? component(element.value) : undefined;
-      if ((declared !== undefined || index) && !route.includes("*"))
-        routes.push({ route, component: comp, file });
-      visit(n.children, route);
+      const comp = component(attr("Component")?.value) ?? component(attr("component")?.value) ?? component(attr("element")?.value);
+      if ((declared !== undefined || index) && !route.includes("*")) {
+        routes.push({ route, component: comp, ancestors: layouts, file });
+      }
+      visit(n.children, route, comp ? [...layouts,comp] : layouts);
       return;
     }
     for (const [key, v] of Object.entries(n))
       if (!["loc", "start", "end", "extra", "comments", "tokens"].includes(key))
-        visit(v, parent);
+        visit(v, parent, layouts);
   };
   let ast: unknown;
   try {
     ast = parse(source, {
       sourceType: "unambiguous",
-      plugins: ["jsx", "typescript"],
+      plugins: ["jsx", "typescript", "decorators-legacy"],
       errorRecovery: false,
       allowReturnOutsideFunction: true,
     });
@@ -509,7 +510,7 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
     try {
       ast = parse(`<>${source}</>`, {
         sourceType: "module",
-        plugins: ["jsx", "typescript"],
+        plugins: ["jsx", "typescript", "decorators-legacy"],
       });
     } catch {
       if (/<Route(?=[\s/>])/.test(source)) unsupported();
@@ -520,10 +521,11 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
 
   // Object style: { path: "/pricing", element: <Pricing /> } or { path, Component }
   const objectPath = /path\s*:\s*(["'`])([^"'`]*)\1/g;
-  while ((match = objectPath.exec(source)) !== null) {
+  const objectSource=stripComments(source);
+  while ((match = objectPath.exec(objectSource)) !== null) {
     const path = match[2] ?? "";
     if (!path.startsWith("/") && path !== "*") continue;
-    const window = source.slice(match.index, match.index + 400);
+    const window = objectSource.slice(match.index, match.index + 400);
     const element = /element\s*:\s*<\s*([A-Za-z0-9_$]+)/.exec(window);
     const component = /(?:Component|component)\s*:\s*([A-Za-z0-9_$]+)/.exec(
       window,
