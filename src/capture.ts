@@ -170,6 +170,9 @@ async function capturePage(
     if (response && response.status() >= 400) {
       throw new Error(`HTTP ${response.status()} for ${options.url}`);
     }
+    // Disable CSS smooth scrolling only for scene captures. Otherwise the
+    // initial lazy sweep can leave an animation running during the actions.
+    if (options.scene) await page.addStyleTag({ content: 'html, body, * { scroll-behavior: auto !important; }' });
     await page
       .waitForLoadState("networkidle", { timeout: Math.min(8_000, options.timeoutMs) })
       .catch(() => undefined);
