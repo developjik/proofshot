@@ -227,3 +227,42 @@ describe("nested JSX React Router", () => {
       );
   });
 });
+
+describe("JSX AST route boundaries", () => {
+  it("reads Route-owned attributes, not layout props or inline apostrophes", () => {
+    const r = parseRouterSource(
+      `<Route element={<Layout path="/help" label="What's new" />} path="/dashboard"><Route path="settings" element={<Settings />} /></Route>`,
+      "src/App.tsx",
+    );
+    expect(r.map((x) => x.route)).toEqual([
+      "/dashboard",
+      "/dashboard/settings",
+    ]);
+    expect(
+      parseRouterSource(
+        `<Route path="/dashboard" element={<h1>What's new</h1>}><Route path="settings" /></Route>`,
+        "src/App.tsx",
+      ).map((x) => x.route),
+    ).toContain("/dashboard/settings");
+  });
+  it("strips parent splat for children and excludes fallback and pathless layout URLs", () => {
+    const r = parseRouterSource(
+      `<Route element={<Layout />}><Route path="/dashboard/*"><Route path="settings" element={<Settings />} /></Route><Route path="*" element={<Missing />} /></Route>`,
+      "src/App.tsx",
+    );
+    expect(r.map((x) => x.route)).toEqual(["/dashboard/settings"]);
+  });
+  it("keeps explicit index paths and index false, and permits optional-prefix absolute children", () => {
+    const r = parseRouterSource(
+      `<Route path="/dashboard"><Route index path="settings" /><Route index={false} path="other" /></Route><Route path="/:lang?"><Route path="/settings" /></Route>`,
+      "src/App.tsx",
+    );
+    expect(r.map((x) => x.route)).toEqual([
+      "/dashboard",
+      "/dashboard/settings",
+      "/dashboard/other",
+      "/:lang?",
+      "/settings",
+    ]);
+  });
+});
