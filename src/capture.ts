@@ -170,11 +170,6 @@ async function capturePage(
     if (response && response.status() >= 400) {
       throw new Error(`HTTP ${response.status()} for ${options.url}`);
     }
-    // Disable CSS smooth scrolling only for scene captures. Otherwise the
-    // initial lazy sweep can leave an animation running during the actions.
-    if (options.scene) await page.evaluate(() => {
-      for (const element of document.querySelectorAll<HTMLElement>('*')) element.style.setProperty('scroll-behavior', 'auto', 'important');
-    });
     await page
       .waitForLoadState("networkidle", { timeout: Math.min(8_000, options.timeoutMs) })
       .catch(() => undefined);
@@ -188,10 +183,10 @@ async function capturePage(
       .evaluate(async () => {
         const step = Math.max(300, window.innerHeight);
         for (let y = 0; y < document.body.scrollHeight; y += step) {
-          window.scrollTo(0, y);
+          window.scrollTo({left:0, top:y, behavior:"instant"});
           await new Promise((r) => setTimeout(r, 40));
         }
-        window.scrollTo(0, 0);
+        window.scrollTo({left:0, top:0, behavior:"instant"});
       })
       .catch(() => undefined);
     await page.waitForTimeout(120);
@@ -214,15 +209,16 @@ async function capturePage(
         } catch (error) { throw new Error(`scene step ${index + 1} (${step.action}): ${(error as Error).message}`); }
       }
       // Wait for explicit JS smooth scrolling and newly created scroll panels.
-      await page.evaluate(async () => {
+      await page.evaluate(async (budget) => {
+        const elements = (root: Document | ShadowRoot): Element[] => Array.from(root.querySelectorAll("*")).flatMap(element => [element, ...(element.shadowRoot ? elements(element.shadowRoot) : [])]);
         let previous = '', stable = 0;
-        const end = Date.now() + 2000;
+        const end = Date.now() + budget;
         while (Date.now() < end && stable < 3) {
-          const current = JSON.stringify([scrollX, scrollY, ...Array.from(document.querySelectorAll('*')).filter(e => e.scrollHeight > e.clientHeight || e.scrollWidth > e.clientWidth).map(e => [e.scrollLeft, e.scrollTop])]);
+          const current = JSON.stringify([scrollX, scrollY, ...elements(document).filter(e => e.scrollHeight > e.clientHeight || e.scrollWidth > e.clientWidth).map(e => [e.scrollLeft, e.scrollTop])]);
           stable = current === previous ? stable + 1 : 0; previous = current;
-          await new Promise(r => setTimeout(r, 50));
+          await new Promise(r => setTimeout(r, Math.min(50, Math.max(1, end-Date.now()))));
         }
-      });
+      }, Math.min(2000, remaining()));
       if (options.scene.expect) await page.locator(options.scene.expect).waitFor({ state: 'visible', timeout: Math.min(5000, remaining()) });
       if (options.settleMs > 0) await page.waitForTimeout(Math.min(options.settleMs, remaining()));
       // Scene actions can reveal offscreen lazy content after the initial sweep.
