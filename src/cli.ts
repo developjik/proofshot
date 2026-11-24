@@ -50,9 +50,14 @@ const VALUE_FLAGS = new Set([
   "fail-on",
 ]);
 
-export async function runCli(argv: string[], context: CliContext = {}): Promise<number> {
-  const out = context.stdout ?? ((line: string) => process.stdout.write(`${line}\n`));
-  const err = context.stderr ?? ((line: string) => process.stderr.write(`${line}\n`));
+export async function runCli(
+  argv: string[],
+  context: CliContext = {},
+): Promise<number> {
+  const out =
+    context.stdout ?? ((line: string) => process.stdout.write(`${line}\n`));
+  const err =
+    context.stderr ?? ((line: string) => process.stderr.write(`${line}\n`));
 
   let parsed: ParsedArgs;
   try {
@@ -88,7 +93,10 @@ export async function runCli(argv: string[], context: CliContext = {}): Promise<
           out,
         });
       case "init":
-        return await commandInit(parsed, { cwd: context.cwd ?? process.cwd(), out });
+        return await commandInit(parsed, {
+          cwd: context.cwd ?? process.cwd(),
+          out,
+        });
       default:
         err(`proofshot: unknown command "${parsed.command}"`);
         err("Run `proofshot --help` for usage.");
@@ -102,23 +110,38 @@ export async function runCli(argv: string[], context: CliContext = {}): Promise<
 
 async function commandCompare(
   parsed: ParsedArgs,
-  ctx: { cwd: string; out: (line: string) => void; err: (line: string) => void; quiet: boolean },
+  ctx: {
+    cwd: string;
+    out: (line: string) => void;
+    err: (line: string) => void;
+    quiet: boolean;
+  },
 ): Promise<number> {
   const failOn = String(parsed.flags.get("fail-on") ?? "")
     .split(",")
     .map((value) => value.trim())
-    .filter((value): value is FailOn => value === "change" || value === "a11y" || value === "error");
+    .filter(
+      (value): value is FailOn =>
+        value === "change" || value === "a11y" || value === "error",
+    );
 
   const thresholdRaw = parsed.flags.get("threshold");
-  const threshold = thresholdRaw === undefined ? undefined : Number(thresholdRaw);
-  if (threshold !== undefined && (!Number.isFinite(threshold) || threshold < 0)) {
+  const threshold =
+    thresholdRaw === undefined ? undefined : Number(thresholdRaw);
+  if (
+    threshold !== undefined &&
+    (!Number.isFinite(threshold) || threshold < 0)
+  ) {
     throw new Error("--threshold must be a non-negative number (percent)");
   }
 
   const routesRaw = parsed.flags.get("routes");
   const routes =
     typeof routesRaw === "string" && routesRaw.trim() !== ""
-      ? routesRaw.split(",").map((route) => route.trim()).filter(Boolean)
+      ? routesRaw
+          .split(",")
+          .map((route) => route.trim())
+          .filter(Boolean)
       : undefined;
 
   const settleRaw = parsed.flags.get("settle");
@@ -140,10 +163,18 @@ async function commandCompare(
     outDir: stringFlag(parsed.flags.get("out")),
     threshold,
     viewports,
-    fullPage: parsed.flags.has("no-full-page") ? false : parsed.flags.has("full-page") ? true : undefined,
+    fullPage: parsed.flags.has("no-full-page")
+      ? false
+      : parsed.flags.has("full-page")
+        ? true
+        : undefined,
     settleMs,
     axe: parsed.flags.get("a11y") === "axe",
-    collectA11y: parsed.flags.has("no-a11y") ? false : parsed.flags.has("a11y") ? true : undefined,
+    collectA11y: parsed.flags.has("no-a11y")
+      ? false
+      : parsed.flags.has("a11y")
+        ? true
+        : undefined,
     failOn,
     log: ctx.quiet ? () => undefined : ctx.out,
   });
@@ -181,10 +212,16 @@ async function commandRoutes(
 ): Promise<number> {
   const filesFlag = stringFlag(parsed.flags.get("files"));
   const explicitFiles = filesFlag
-    ? filesFlag.split(",").map((file) => file.trim()).filter(Boolean)
+    ? filesFlag
+        .split(",")
+        .map((file) => file.trim())
+        .filter(Boolean)
     : undefined;
 
-  const { config } = loadConfig(ctx.cwd, stringFlag(parsed.flags.get("config")));
+  const { config } = loadConfig(
+    ctx.cwd,
+    stringFlag(parsed.flags.get("config")),
+  );
   const diff = explicitFiles
     ? { files: explicitFiles, range: "(files)", warning: undefined }
     : changedFiles({
@@ -193,7 +230,9 @@ async function commandRoutes(
         headRef: stringFlag(parsed.flags.get("head-ref")),
       });
 
-  const routerRoutes = discoverRouterRoutes(ctx.cwd);
+  const routerRoutes = config.routes?.length
+    ? []
+    : discoverRouterRoutes(ctx.cwd);
   const candidates = inferRoutes(diff.files, {
     config,
     routerRoutes,
@@ -201,14 +240,25 @@ async function commandRoutes(
   });
 
   if (parsed.flags.has("json")) {
-    ctx.out(JSON.stringify({ range: diff.range, files: diff.files, routes: candidates }, null, 2));
+    ctx.out(
+      JSON.stringify(
+        { range: diff.range, files: diff.files, routes: candidates },
+        null,
+        2,
+      ),
+    );
     return 0;
   }
 
   if (diff.warning) ctx.out(`note: ${diff.warning}`);
-  ctx.out(`${candidates.length} route(s) from ${diff.files.length} changed file(s) (${diff.range})`);
+  ctx.out(
+    `${candidates.length} route(s) from ${diff.files.length} changed file(s) (${diff.range})`,
+  );
   ctx.out("");
-  const width = Math.max(5, ...candidates.map((candidate) => candidate.route.length));
+  const width = Math.max(
+    5,
+    ...candidates.map((candidate) => candidate.route.length),
+  );
   const frameworkWidth = Math.max(
     9,
     ...candidates.map((candidate) => candidate.framework.length),
@@ -216,7 +266,9 @@ async function commandRoutes(
   ctx.out(
     `${"ROUTE".padEnd(width)}  ${"FRAMEWORK".padEnd(frameworkWidth)}  SOURCE`,
   );
-  ctx.out(`${"-".repeat(width)}  ${"-".repeat(frameworkWidth)}  ${"-".repeat(30)}`);
+  ctx.out(
+    `${"-".repeat(width)}  ${"-".repeat(frameworkWidth)}  ${"-".repeat(30)}`,
+  );
   for (const candidate of candidates) {
     ctx.out(
       `${candidate.route.padEnd(width)}  ${candidate.framework.padEnd(frameworkWidth)}  ${candidate.source}`,
@@ -229,7 +281,10 @@ async function commandInit(
   parsed: ParsedArgs,
   ctx: { cwd: string; out: (line: string) => void },
 ): Promise<number> {
-  const result = await runInit({ cwd: ctx.cwd, force: parsed.flags.has("force") });
+  const result = await runInit({
+    cwd: ctx.cwd,
+    force: parsed.flags.has("force"),
+  });
   if (result.created) {
     ctx.out(`created ${WORKFLOW_PATH}`);
     ctx.out(`path: ${result.path}`);
@@ -251,17 +306,35 @@ function summaryTable(
   }>,
 ): string {
   const lines: string[] = [];
-  const routeWidth = Math.max(5, ...results.map((result) => result.route.length));
-  const viewportWidth = Math.max(8, ...results.map((result) => result.viewport.length));
+  const routeWidth = Math.max(
+    5,
+    ...results.map((result) => result.route.length),
+  );
+  const viewportWidth = Math.max(
+    8,
+    ...results.map((result) => result.viewport.length),
+  );
   lines.push(
     `${"ROUTE".padEnd(routeWidth)}  ${"VIEWPORT".padEnd(viewportWidth)}  ${"DIFF".padStart(9)}  A11Y   CONSOLE  STATUS`,
   );
   for (const result of results) {
     const diff =
-      result.diffPercent === null ? "—" : `${result.diffPercent.toFixed(2)}%`.padStart(9);
-    const net = (result.a11y ? result.a11y.regressions.length - result.a11y.fixes.length : 0) + (result.axe ? result.axe.regressions.length - result.axe.fixes.length : 0);
-    const a11y = net === 0 ? "0".padStart(4) : `${net > 0 ? "+" : ""}${net}`.padStart(4);
-    const consoleCell = `${result.consoleErrors.before}→${result.consoleErrors.after}`.padStart(7);
+      result.diffPercent === null
+        ? "—"
+        : `${result.diffPercent.toFixed(2)}%`.padStart(9);
+    const net =
+      (result.a11y
+        ? result.a11y.regressions.length - result.a11y.fixes.length
+        : 0) +
+      (result.axe
+        ? result.axe.regressions.length - result.axe.fixes.length
+        : 0);
+    const a11y =
+      net === 0 ? "0".padStart(4) : `${net > 0 ? "+" : ""}${net}`.padStart(4);
+    const consoleCell =
+      `${result.consoleErrors.before}→${result.consoleErrors.after}`.padStart(
+        7,
+      );
     lines.push(
       `${result.route.padEnd(routeWidth)}  ${result.viewport.padEnd(viewportWidth)}  ${diff}  ${a11y}  ${consoleCell}  ${result.status}`,
     );
@@ -295,7 +368,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       if (inlineValue !== undefined) {
         flags.set(name, inlineValue);
       } else if (name === "a11y" && argv[index + 1] === "axe") {
-        flags.set(name, "axe"); index += 1;
+        flags.set(name, "axe");
+        index += 1;
       } else if (BOOLEAN_FLAGS.has(name)) {
         flags.set(name, true);
       } else {
@@ -337,7 +411,8 @@ export function readVersion(): string {
         name?: string;
         version?: string;
       };
-      if (parsed.name === "@developjik/proofshot" && parsed.version) return parsed.version;
+      if (parsed.name === "@developjik/proofshot" && parsed.version)
+        return parsed.version;
     } catch {
       // try the next location
     }

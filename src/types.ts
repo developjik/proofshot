@@ -22,6 +22,7 @@ export interface RouteCandidate {
 
 /** A route parsed out of a React Router definition file. */
 export interface RouterRoute {
+  ancestors?: string[];
   route: string;
   component?: string;
   /** File the route was declared in, relative to the project root. */

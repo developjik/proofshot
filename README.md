@@ -303,3 +303,18 @@ Axe delta identity is rule + selector path, including the full ancestor path for
 Use Node.js 22.12.0 (`.nvmrc`) for development and CI. Vitest 5.1.1 requires Node 22.12+ on its supported release lines; Node 20.19 is outside its declared development support range. It may execute there, but CI does not treat that as supported test-runner usage. This development requirement does not change the package engine declaration. Runtime compatibility must be checked using the built package, separately from the test runner. TypeScript 7.0.2 is the development compiler baseline.
 
 For early Node20 compatibility, build bundles pixelmatch ESM as CJS and includes its original license. Consumer engines are unchanged.
+
+### Nested React Router JSX
+
+Static literal JSX routes keep their parent URL: a `settings` child of
+`/dashboard` maps to `/dashboard/settings`. Index routes without a path use the parent URL (an explicit path is preserved),
+and pathless layout routes add no segment. Nested absolute paths must start
+with their parent's path, as React Router requires. Dynamic `path` expressions,
+spread route attributes and malformed Route nesting stop inference with advice
+to set `.proofshot.json` `routes` or pass `--routes`, rather than guessing a child
+URL without its parent. This uses a Node20-compatible Babel7 JSX parser, not arbitrary JavaScript
+execution. Object-style route inference retains its existing limited support.
+
+The nested-router browser fixture uses isolated, lockfile-pinned React and React
+Router test dependencies. Its test runs `npm ci --ignore-scripts` in that fixture;
+these packages are not dependencies of the published proofshot CLI.

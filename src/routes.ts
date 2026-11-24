@@ -1,3 +1,4 @@
+import { parse } from "@babel/parser";
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type {
@@ -58,7 +59,9 @@ export function inferRoutes(
   }
 
   const routerRoutes = options.routerRoutes ?? [];
-  const routerFileSet = new Set(routerRoutes.map((route) => toPosix(route.file)));
+  const routerFileSet = new Set(
+    routerRoutes.map((route) => toPosix(route.file)),
+  );
   const out: RouteCandidate[] = [];
   const seen = new Set<string>();
 
@@ -77,8 +80,7 @@ export function inferRoutes(
       framework,
       source: toPosix(source),
       reason,
-      dynamic:
-        dynamic ?? /\[[^\]]+\]|:[A-Za-z_][A-Za-z0-9_]*/.test(normalized),
+      dynamic: dynamic ?? /\[[^\]]+\]|:[A-Za-z_][A-Za-z0-9_]*/.test(normalized),
     });
   };
 
@@ -101,7 +103,9 @@ export function inferRoutes(
           route.route,
           "react-router",
           file,
-          route.component
+          route.ancestors?.some(c=>componentKey(c)===componentKey(file))
+            ? `layout <${route.ancestors.find(c=>componentKey(c)===componentKey(file))}> wraps this route in ${route.file}`
+            : route.component
             ? `route element <${route.component}> is defined in ${route.file}`
             : `declared in ${route.file}`,
         );
@@ -158,7 +162,9 @@ export function inferRoutes(
 }
 
 /** `src/app/dashboard/page.tsx` -> `/dashboard` (Next.js App Router). */
-export function nextAppRoute(file: string): { route: string; reason: string } | null {
+export function nextAppRoute(
+  file: string,
+): { route: string; reason: string } | null {
   const match = /^(?:src\/)?app\/(.+)$/.exec(file);
   if (!match) return null;
   const rest = match[1] ?? "";
@@ -215,12 +221,11 @@ export function staticHtmlRoute(file: string): string | null {
   return normalizeRoute(route);
 }
 
-function viteSpaRoute(
-  file: string,
-): { route: string; reason: string } | null {
-  const match = /^(?:src\/)?(pages|views|routes)\/(.+)\.(tsx|ts|jsx|js|vue|svelte)$/.exec(
-    file,
-  );
+function viteSpaRoute(file: string): { route: string; reason: string } | null {
+  const match =
+    /^(?:src\/)?(pages|views|routes)\/(.+)\.(tsx|ts|jsx|js|vue|svelte)$/.exec(
+      file,
+    );
   if (match) {
     const rest = match[2] ?? "";
     const segments = rest.split("/");
@@ -285,7 +290,10 @@ export function detectNextProject(cwd: string): boolean {
  * This is a heuristic (no bundler, no runtime), deliberately conservative:
  * only literal `path` values are read, so dynamic expressions are skipped.
  */
-export function discoverRouterRoutes(cwd: string, maxFiles = 400): RouterRoute[] {
+export function discoverRouterRoutes(
+  cwd: string,
+  maxFiles = 400,
+): RouterRoute[] {
   const files = walkSourceFiles(cwd, maxFiles);
   const routes: RouterRoute[] = [];
   for (const file of files) {
@@ -297,10 +305,14 @@ export function discoverRouterRoutes(cwd: string, maxFiles = 400): RouterRoute[]
     } catch {
       continue;
     }
-    if (!/(<Route\b|createBrowserRouter|createRoutesFromElements|useRoutes\()/.test(source)) {
+    if (
+      !/(<Route\b|createBrowserRouter|createRoutesFromElements|useRoutes\()/.test(
+        source,
+      )
+    ) {
       continue;
     }
-    routes.push(...parseRouterSource(stripComments(source), file));
+    routes.push(...parseRouterSource(source, file));
   }
   return dedupeRouterRoutes(routes);
 }
@@ -310,7 +322,11 @@ function dedupeRouterRoutes(routes: RouterRoute[]): RouterRoute[] {
   const out: RouterRoute[] = [];
   for (const route of routes) {
     const key = `${normalizeRoute(route.route)}|${route.component ?? ""}`;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) {
+      const existing=out.find(r=>`${normalizeRoute(r.route)}|${r.component??""}`===key)!;
+      existing.ancestors=[...new Set([...(existing.ancestors??[]),...(route.ancestors??[])])];
+      continue;
+    }
     seen.add(key);
     out.push({ ...route, route: normalizeRoute(route.route) });
   }
@@ -328,7 +344,8 @@ function matchRouterRoute(
   return routerRoutes.filter(
     (route) =>
       routerFileSet.has(file) ||
-      (route.component !== undefined && componentKey(route.component) === key),
+      (route.component !== undefined && componentKey(route.component) === key) ||
+      Boolean(route.ancestors?.some(component=>componentKey(component)===key)),
   );
 }
 
@@ -350,7 +367,10 @@ export function stripComments(source: string): string {
     }
     if (char === "/" && next === "*") {
       index += 2;
-      while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) {
+      while (
+        index < source.length &&
+        !(source[index] === "*" && source[index + 1] === "/")
+      ) {
         index += 1;
       }
       index += 2;
@@ -384,24 +404,138 @@ export function stripComments(source: string): string {
 export function parseRouterSource(source: string, file: string): RouterRoute[] {
   const routes: RouterRoute[] = [];
 
-  const jsxRoute = /<Route\b([^>]*)>/g;
-  let match: RegExpExecArray | null;
-  while ((match = jsxRoute.exec(source)) !== null) {
-    const attrs = match[1] ?? "";
-    const path = readPathAttribute(attrs);
-    if (path === null) continue;
-    const component = readComponentAttribute(attrs);
-    routes.push({ route: path, component, file });
+  const unsupported = (): never => {
+    throw new Error(
+      `Cannot infer static React Router routes in ${file}; set explicit routes in .proofshot.json or --routes.`,
+    );
+  };
+  type Node = { type?: string; [key: string]: unknown };
+  const node = (v: unknown): Node =>
+    v !== null && typeof v === "object" ? (v as Node) : {};
+  const name = (v: unknown): string | undefined => {
+    const n = node(v);
+    return typeof n.name === "string" ? n.name : undefined;
+  };
+  const literal = (v: unknown): string | undefined => {
+    const n = node(v);
+    if (n.type === "StringLiteral") return n.value as string;
+    if (n.type === "JSXExpressionContainer") return literal(n.expression);
+    if (
+      n.type === "TemplateLiteral" &&
+      Array.isArray(n.expressions) &&
+      !n.expressions.length
+    ) {
+      return ((n.quasis as Node[])[0]?.value as { cooked?: string })?.cooked;
+    }
+    return undefined;
+  };
+  const component = (v: unknown): string | undefined => {
+    const n = node(v);
+    if (n.type === "JSXExpressionContainer") return component(n.expression);
+    if (n.type === "JSXElement") return name(node(n.openingElement).name);
+    return ["undefined","null","false"].includes(name(n)??"")?undefined:name(n);
+  };
+  const visited = new Set<object>();
+  const visit = (value: unknown, parent = "/", layouts: string[] = []): void => {
+    if (!value || typeof value !== "object" || visited.has(value)) return;
+    visited.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, parent, layouts);
+      return;
+    }
+    const n = node(value);
+    if (
+      n.type === "JSXElement" &&
+      name(node(n.openingElement).name) === "Route"
+    ) {
+      const opening = node(n.openingElement),
+        attrs = opening.attributes as Node[];
+      if (attrs.some((a) => a.type === "JSXSpreadAttribute")) unsupported();
+      const attr = (key: string) => attrs.find((a) => name(a.name) === key);
+      const p = attr("path"),
+        declared = p ? literal(p.value) : undefined;
+      if (p && declared === undefined) unsupported();
+      const indexAttr = attr("index");
+      let index = false;
+      if (indexAttr) {
+        const v = node(indexAttr.value);
+        if (indexAttr.value == null) index = true;
+        else if (
+          v.type === "JSXExpressionContainer" &&
+          node(v.expression).type === "BooleanLiteral"
+        )
+          index = node(v.expression).value === true;
+        else unsupported();
+      }
+      const prefix = parent.replace(/\/\*$/, "") || "/";
+      const child = declared ?? "";
+      const requiredPrefix = normalizeRoute(
+        prefix
+          .split("/")
+          .filter((s) => !s.endsWith("?"))
+          .join("/"),
+      );
+      if (
+        child.startsWith("/") &&
+        prefix !== "/" &&
+        child !== prefix &&
+        !child.startsWith(prefix + "/") &&
+        !(
+          prefix.includes("?") &&
+          (requiredPrefix === "/" ||
+            child === requiredPrefix ||
+            child.startsWith(requiredPrefix + "/"))
+        )
+      ) {
+        // Optional parent segments cannot be expanded safely here.
+        unsupported();
+      }
+      const route = child.startsWith("/")
+        ? normalizeRoute(child)
+        : normalizeRoute(`${prefix}/${child}`);
+      const comp = component(attr("Component")?.value) ?? component(attr("component")?.value) ?? component(attr("element")?.value);
+      if ((declared !== undefined || index) && !route.includes("*")) {
+        routes.push({ route, component: comp, ancestors: layouts, file });
+      }
+      visit(n.children, route, comp ? [...layouts,comp] : layouts);
+      return;
+    }
+    for (const [key, v] of Object.entries(n))
+      if (!["loc", "start", "end", "extra", "comments", "tokens"].includes(key))
+        visit(v, parent, layouts);
+  };
+  let ast: unknown;
+  try {
+    ast = parse(source, {
+      sourceType: "unambiguous",
+      plugins: /\.[cm]?ts$/.test(file) ? ["typescript", "decorators-legacy"] : ["jsx", "typescript", "decorators-legacy"],
+      errorRecovery: false,
+      allowReturnOutsideFunction: true,
+    });
+  } catch {
+    try {
+      ast = parse(`<>${source}</>`, {
+        sourceType: "module",
+        plugins: /\.[cm]?ts$/.test(file) ? ["typescript", "decorators-legacy"] : ["jsx", "typescript", "decorators-legacy"],
+      });
+    } catch {
+      if (/<Route(?=[\s/>])/.test(stripComments(source))) unsupported();
+    }
   }
+  if (ast) visit(ast);
+  let match: RegExpExecArray | null;
 
   // Object style: { path: "/pricing", element: <Pricing /> } or { path, Component }
   const objectPath = /path\s*:\s*(["'`])([^"'`]*)\1/g;
-  while ((match = objectPath.exec(source)) !== null) {
+  const objectSource=stripComments(source);
+  while ((match = objectPath.exec(objectSource)) !== null) {
     const path = match[2] ?? "";
     if (!path.startsWith("/") && path !== "*") continue;
-    const window = source.slice(match.index, match.index + 400);
+    const window = objectSource.slice(match.index, match.index + 400);
     const element = /element\s*:\s*<\s*([A-Za-z0-9_$]+)/.exec(window);
-    const component = /(?:Component|component)\s*:\s*([A-Za-z0-9_$]+)/.exec(window);
+    const component = /(?:Component|component)\s*:\s*([A-Za-z0-9_$]+)/.exec(
+      window,
+    );
     routes.push({
       route: path,
       component: element?.[1] ?? component?.[1],
@@ -413,18 +547,26 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
 }
 
 function readPathAttribute(attrs: string): string | null {
-  const literal = /path\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*["'`]([^"'`]*)["'`]\s*\})/.exec(
-    attrs,
-  );
-  if (literal) return literal[1] ?? literal[2] ?? literal[3] ?? null;
-  if (/\bindex\b/.test(attrs)) return "/";
+  const literal =
+    /path\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*["'`]([^"'`]*)["'`]\s*\})/.exec(
+      attrs,
+    );
+  if (literal) {
+    const value = literal[1] ?? literal[2] ?? literal[3] ?? null;
+    if (value?.includes("${")) return null;
+    return value;
+  }
+  if (/\bindex\b/.test(attrs)) return "";
   return null;
 }
 
 function readComponentAttribute(attrs: string): string | undefined {
   const element = /element\s*=\s*\{\s*<\s*([A-Za-z0-9_$]+)/.exec(attrs);
   if (element?.[1]) return element[1];
-  const component = /component\s*=\s*(?:\{\s*([A-Za-z0-9_$]+)|"([^"]+)")/.exec(attrs);
+  const component =
+    /(?:Component|component)\s*=\s*(?:\{\s*([A-Za-z0-9_$]+)|"([^"]+)")/.exec(
+      attrs,
+    );
   return component?.[1] ?? component?.[2];
 }
 
@@ -472,7 +614,12 @@ function walkSourceFiles(cwd: string, maxFiles: number): string[] {
 
   // Router definitions often live in App.tsx at the root of src/; those are
   // already covered. Also look at a couple of conventional root files.
-  for (const candidate of ["src/App.tsx", "src/App.jsx", "src/main.tsx", "src/main.jsx"]) {
+  for (const candidate of [
+    "src/App.tsx",
+    "src/App.jsx",
+    "src/main.tsx",
+    "src/main.jsx",
+  ]) {
     if (out.length >= maxFiles) break;
     if (out.includes(candidate)) continue;
     try {
