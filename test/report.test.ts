@@ -118,8 +118,8 @@ describe("buildReportMarkdown", () => {
 
   it("lists new a11y issues and links the evidence images", () => {
     const markdown = buildReportMarkdown(meta, results);
-    expect(markdown).toContain("![head-root-desktop.png](head-root-desktop.png)");
-    expect(markdown).toContain("![root-desktop-diff.png](root-desktop-diff.png)");
+    expect(markdown).toContain("![after](head-root-desktop.png)");
+    expect(markdown).toContain("![diff](root-desktop-diff.png)");
     expect(markdown).toContain("**New issues**");
     expect(markdown).toContain("`img-alt`");
     expect(markdown).toContain("HTTP 500");

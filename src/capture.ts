@@ -4,7 +4,7 @@ import { chromium, type Browser } from "playwright";
 import type { ViewportSpec } from "./types";
 import { captureA11y, type A11ySnapshot } from "./a11y";
 import { serveDirectory, type StaticServer } from "./serve";
-import { isUrl, normalizeRoute, routeSlug } from "./util";
+import { isUrl, normalizeRoute, routeArtifactId } from "./util";
 
 export const DEFAULT_VIEWPORTS: ViewportSpec[] = [
   { name: "desktop", width: 1280, height: 800 },
@@ -170,7 +170,7 @@ async function capturePage(
       .catch(() => undefined);
     await page.waitForTimeout(120);
 
-    const fileName = `${options.side}-${routeSlug(options.route)}-${options.viewport}.png`;
+    const fileName = `${options.side}-${routeArtifactId(options.route)}-${options.viewport}.png`;
     const screenshotPath = join(options.outDir, fileName);
     await page.screenshot({
       path: screenshotPath,

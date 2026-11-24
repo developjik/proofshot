@@ -13,7 +13,7 @@ import {
 } from "./report";
 import { discoverRouterRoutes, detectNextProject, inferRoutes } from "./routes";
 import type { ProofshotConfig, ProofshotMeta, ViewportSpec } from "./types";
-import { formatPercent, isUrl, normalizeRoute, routeSlug, uniqueBy } from "./util";
+import { formatPercent, isUrl, normalizeRoute, routeArtifactId, uniqueBy } from "./util";
 
 export type FailOn = "change" | "a11y" | "error";
 
@@ -295,7 +295,7 @@ async function comparePair(input: {
     result.sizes = { before: diff.before, after: diff.after };
     result.status = diff.diffPercent > thresholdPercent ? "changed" : "unchanged";
     if (diff.changedPixels > 0) {
-      const diffName = `${routeSlug(route)}-${viewport}-diff.png`;
+      const diffName = `${routeArtifactId(route)}-${viewport}-diff.png`;
       await writeFile(resolve(outDir, diffName), diff.diffPng);
       result.images.diff = diffName;
     }
