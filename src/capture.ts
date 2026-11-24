@@ -216,9 +216,9 @@ async function capturePage(
         const end = Date.now() + budget;
         const height = Math.min(document.body.scrollHeight, 100000);
         for (let y = 0; y < height && Date.now() < end; y += Math.max(300, innerHeight)) {
-          scrollTo(0, y); await new Promise(r => setTimeout(r, 40));
+          scrollTo({ left: 0, top: y, behavior: "instant" }); await new Promise(r => setTimeout(r, 40));
         }
-        scrollTo(original.x, original.y);
+        scrollTo({ left: original.x, top: original.y, behavior: "instant" });
         await Promise.race([Promise.all(Array.from(document.images).filter(image => image.getBoundingClientRect().width > 0).map(image => image.decode().catch(() => undefined))), new Promise(r => setTimeout(r, Math.max(1, end - Date.now())))]);
       }, Math.min(3000, remaining()));
 
