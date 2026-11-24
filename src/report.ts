@@ -185,7 +185,7 @@ export function buildReportMarkdown(
         continue;
       }
       lines.push(`New: ${axe.regressions.length}; Existing: ${axe.existing.length}; Fixed: ${axe.fixes.length}; Needs manual review: ${axe.after.incomplete ?? 0}`, '');
-      for (const [label, issues] of [['New', axe.regressions], ['Existing', axe.existing]] as const) {
+      for (const [label, issues] of [['New', axe.regressions], ['Existing', axe.existing], ['Fixed', axe.fixes]] as const) {
         for (const issue of issues) lines.push(`- ${label}: ${issue.rule} (${issue.impact ?? 'unknown'}) at ${JSON.stringify(issue.target)}`);
       }
       lines.push('');
