@@ -40,6 +40,14 @@ async function targetInfo(path, commit) {
   return { dir, commit, contentHash: hash(JSON.stringify(entries)) };
 }
 
+/** Serializable browser predicate; absolute elapsed time survives same-tab navigation. */
+export function observationComplete({ids, baselineOrigin, grace, observationStart}) {
+  const snapshot = window.__livesayProbe?.snapshot();
+  const excluded = performance.timeOrigin === baselineOrigin ? ids : [];
+  const answers = snapshot?.answers.filter(a => !excluded.includes(a.id)) ?? [];
+  return answers.length > 0 && answers.every(a => a.outcome !== 'running' && Number.isFinite(a.endedAt)) && performance.timeOrigin + performance.now() - observationStart >= grace && snapshot.capturedAt - Math.max(...answers.map(a => a.endedAt)) >= grace;
+}
+
 export async function runPack(config, livesay) {
   const scenes = normalizeScenes(config.scenes).map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) }));
   if (scenes.some(s => /\[[^\]]+\]|:[A-Za-z_]/.test(s.route))) throw new Error('Resolve scene route parameters in manifest params');
@@ -73,23 +81,19 @@ export async function runPack(config, livesay) {
       try { await livesay.installProbe(page); } catch { failures.push({ side: capture.side, scene: capture.scene, reason: 'probe-install-failed' }); }
     },
     async beforeScene(page, capture) {
-      try { const snapshot = await livesay.readProbeSnapshot(page); baselines.set(key(capture), snapshot.answers.map(a => a.id)); } catch {}
+      try { const snapshot = await livesay.readProbeSnapshot(page); baselines.set(key(capture), { ids: snapshot.answers.map(a => a.id), timeOrigin: await page.evaluate(() => performance.timeOrigin) }); } catch {}
     },
     async beforeScreenshot(page, capture) {
       if (!capture.scene) return;
       try {
         const oldIds = baselines.get(key(capture));
         if (!oldIds) throw new Error('scene start snapshot missing');
-        const observationStart = (await livesay.readProbeSnapshot(page)).capturedAt;
-        await page.waitForFunction(({ids, grace, observationStart}) => {
-          const snapshot = window.__livesayProbe?.snapshot();
-          const answers = snapshot?.answers.filter(a => !ids.includes(a.id)) ?? [];
-          // Every newly observed answer gets its own full grace. A later answer
-          // resets the boundary; bounded timeout leaves sustained streams unverified.
-          return answers.length > 0 && answers.every(a => a.outcome !== 'running' && Number.isFinite(a.endedAt)) && snapshot.capturedAt - observationStart >= grace && snapshot.capturedAt - Math.max(...answers.map(a => a.endedAt)) >= grace;
-        }, {ids: oldIds, grace: graceMs, observationStart}, { timeout: 1500 + graceMs * 3, polling: 50 });
+        const observationStart = await page.evaluate(() => performance.timeOrigin + performance.now());
+        await page.waitForFunction(observationComplete, {ids: oldIds.ids, baselineOrigin: oldIds.timeOrigin, grace: graceMs, observationStart}, { timeout: 1500 + graceMs * 3, polling: 50 });
         const snapshot = await livesay.readProbeSnapshot(page);
-        if (!snapshot.events.length || !snapshot.answers.filter(a => !oldIds.includes(a.id)).length || snapshot.answers.some(a => a.outcome === 'running')) throw new Error('empty recording');
+        const currentOrigin = await page.evaluate(() => performance.timeOrigin);
+        const ids = currentOrigin === oldIds.timeOrigin ? oldIds.ids : [];
+        if (!snapshot.events.length || !snapshot.answers.filter(a => !ids.includes(a.id)).length || snapshot.answers.some(a => a.outcome === 'running')) throw new Error('empty recording');
         const report = livesay.audit(snapshot, { profile: 'nvda-like' });
         const item = { binding: { ...binding }, scene: capture.scene, side: capture.side, report };
         captures.set(key(capture), item);
