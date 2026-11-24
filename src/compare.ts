@@ -1,3 +1,4 @@
+import { routeIdentity } from './util';
 import { computeAxeDelta } from './axe';
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
@@ -94,7 +95,7 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
     );
   }
 
-  const scenes = normalizeScenes(options.scenes ?? config.scenes ?? []).map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => routes.includes(scene.route));
+  const scenes = normalizeScenes(options.scenes ?? config.scenes ?? []).map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => routes.some(route => routeIdentity(route) === routeIdentity(scene.route)));
 
   await mkdir(outDir, { recursive: true });
 
