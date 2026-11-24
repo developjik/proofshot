@@ -96,3 +96,6 @@ UNVERIFIED: the previous document's probe transcript cannot be recovered and
 might contain an unfinished answer. This example does not join transcripts
 across documents or claim that a completed destination answer proves the prior
 answer ended. SPA state changes without document replacement are supported.
+
+A cross-document scene is also blocked on the visual side: no destination
+loading screenshot is presented as a successful before/after comparison.
