@@ -40,6 +40,7 @@ export interface ViewportSpec {
 export interface ProofshotConfig {
   /** Explicit routes. When present they replace route inference. */
   routes?: string[];
+  scenes?: SceneSpec[];
   /** Base and head to capture: a build directory or an http(s) URL. */
   base?: string;
   head?: string;
@@ -71,4 +72,21 @@ export interface ProofshotMeta {
   thresholdPercent: number;
   generatedAt: string;
   notes: string[];
+}
+
+
+export interface SceneStep {
+  action: 'click' | 'fill' | 'press' | 'wait';
+  selector?: string;
+  /** Exact visible text, as an alternative to a CSS selector. */
+  text?: string;
+  value?: string;
+  timeoutMs?: number;
+}
+export interface SceneSpec {
+  name: string;
+  route: string;
+  steps: SceneStep[];
+  /** CSS selector that must be visible after all steps. */
+  expect?: string;
 }
