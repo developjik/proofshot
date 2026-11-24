@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { runPack, bindEvidence } from './run.mjs';
+import { runPack, bindEvidence, observationComplete } from './run.mjs';
 const livesay = await import(pathToFileURL(resolve(process.argv[2])).href);
 const config = JSON.parse(await readFile(process.argv[3], 'utf8'));
 test('binding refuses scene, step/viewport, and either commit drift', () => {
@@ -73,4 +73,19 @@ test('final action asynchronous answer is observed after earlier answer grace el
  const c=await fixture(`const p=window.__livesayProbe;document.querySelector('#open').onclick=()=>{p.mark('start',{id:'first'});p.mark('done',{id:'first'});setTimeout(()=>{const b=document.createElement('button');b.id='last';b.textContent='Last';b.onclick=()=>setTimeout(()=>{p.mark('start',{id:'last'});document.querySelector('#result').textContent='Last completed.';p.mark('done',{id:'last'});},400);document.body.append(b);},1500);};`);
  c.scenes[0].steps=[{action:'click',selector:'#open'},{action:'wait',selector:'#last'},{action:'click',selector:'#last'}];
  const pack=await runPack(c,livesay);assert.equal(pack.rows[0].status,'verified');assert.match(pack.rows[0].transcripts.head.join(' '),/Last completed/);
+});
+
+test('observation predicate rejects old completed answers until final-action quiet time',()=>{
+ const old=globalThis.window;
+ try {
+  globalThis.window={__livesayProbe:{snapshot:()=>({capturedAt:9000,answers:[{id:'x',endedAt:100,outcome:'done'}]})}};
+  const now=performance.timeOrigin+performance.now();
+  const args={ids:[],baselineOrigin:performance.timeOrigin,grace:1200,observationStart:now};
+  assert.equal(observationComplete(args),false);
+  assert.equal(observationComplete({...args,observationStart:now-1300}),true);
+ } finally {globalThis.window=old;}
+});
+test('same-tab document navigation does not reset absolute observation elapsed time',async()=>{
+ const c=await fixture(`if(location.pathname==='/second'){const p=window.__livesayProbe;p.mark('start',{id:'x'});document.querySelector('#result').textContent='Navigation completed.';p.mark('done',{id:'x'});}document.querySelector('#open').onclick=()=>{const p=window.__livesayProbe;p.mark('start',{id:'x'});p.mark('done',{id:'x'});setTimeout(()=>location.href='/second',700);};`);
+ const pack=await runPack(c,livesay);assert.equal(pack.rows[0].status,'verified');assert.match(pack.rows[0].transcripts.head.join(' '),/Navigation completed/);
 });
