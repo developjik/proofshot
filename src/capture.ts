@@ -1,3 +1,4 @@
+import { captureAxe, type AxeSnapshot } from './axe';
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { chromium, type Browser } from "playwright";
@@ -22,6 +23,8 @@ export interface CaptureOptions {
   settleMs?: number;
   timeoutMs?: number;
   collectA11y?: boolean;
+  axe?: boolean;
+  axeCwd?: string;
 }
 
 export interface PageCapture {
@@ -33,6 +36,7 @@ export interface PageCapture {
   height?: number;
   screenshotPath?: string;
   a11y?: A11ySnapshot;
+  axe?: AxeSnapshot;
   consoleErrors: string[];
   error?: string;
 }
@@ -95,6 +99,8 @@ export async function captureSide(options: CaptureOptions): Promise<CaptureSideR
             settleMs: options.settleMs ?? 400,
             timeoutMs: options.timeoutMs ?? 30_000,
             collectA11y: options.collectA11y ?? true,
+            axe: options.axe,
+            axeCwd: options.axeCwd,
           });
           captures.push(capture);
         }
@@ -122,6 +128,8 @@ async function capturePage(
     settleMs: number;
     timeoutMs: number;
     collectA11y: boolean;
+    axe?: boolean;
+    axeCwd?: string;
   },
 ): Promise<PageCapture> {
   const page = await context.newPage();
@@ -187,6 +195,7 @@ async function capturePage(
     base.width = size.width;
     base.height = size.height;
 
+    if (options.axe) base.axe = await captureAxe(page, options.axeCwd);
     if (options.collectA11y) {
       base.a11y = await captureA11y(page, consoleErrors);
     }
