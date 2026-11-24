@@ -26,7 +26,7 @@ it('captures two-step modal scenes on both sides, preserves routes, and isolates
   const cwd = await mkdtemp(join(tmpdir(), 'proofshot-scenes-'));
   for (const side of ['before', 'after']) {
     await mkdir(join(cwd, side));
-    await writeFile(join(cwd, side, 'index.html'), `<!doctype html><html><head><title>Scenes</title><style>body{font:20px sans-serif;padding:30px}#modal{padding:32px;border:4px solid navy;background:#eef}input,button{font:inherit}</style></head><body><h1>Scene fixture</h1><button hidden>Open modal</button><button id="open" onclick="document.querySelector('#modal').hidden=false;localStorage.setItem('scene-dirty','yes')">Open modal</button><p id="storage-clean" hidden>Clean storage</p><script>if(!localStorage.getItem("scene-dirty"))document.querySelector("#storage-clean").hidden=false;</script><section id="modal" role="dialog" aria-label="Details" hidden><h2>${side === 'before' ? 'Original modal' : 'Updated modal'}</h2><input id="name" aria-label="Name"><button onclick="document.querySelector('#error').hidden=false">Submit</button><p id="error" hidden>Enter a valid name</p><div style="height:900px"></div><img loading="lazy" id="lazy" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='60'%3E%3Crect width='100' height='60' fill='red'/%3E%3C/svg%3E" ${side === 'before' ? 'alt="sample"' : ''}></section></body></html>`);
+    await writeFile(join(cwd, side, 'index.html'), `<!doctype html><html><head><title>Scenes</title><style>body{font:20px sans-serif;padding:30px}#modal{padding:32px;border:4px solid navy;background:#eef}input,button{font:inherit}</style></head><body><h1>Scene fixture</h1><button hidden>Open modal</button><button id="open" onclick="document.querySelector('#modal').hidden=false;localStorage.setItem('scene-dirty','yes')">Open modal</button><p id="storage-clean" hidden>Clean storage</p><script>if(!localStorage.getItem("scene-dirty"))document.querySelector("#storage-clean").hidden=false;</script><section id="modal" role="dialog" aria-label="Details" hidden><h2>${side === 'before' ? 'Original modal' : 'Updated modal'}</h2><input id="name" aria-label="Name"><button onclick="document.querySelector('#error').hidden=false">Submit</button><p id="error" hidden>Enter a valid name</p><div style="height:900px"></div><img loading="lazy" id="lazy" width="100" height="60" data-src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='60'%3E%3Crect width='100' height='60' fill='red'/%3E%3C/svg%3E" ${side === 'before' ? 'alt="sample"' : ''}></section><script>const img=document.querySelector("#lazy");new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){img.src=img.dataset.src;}},{rootMargin:"0px"}).observe(img);</script></body></html>`);
   }
   const scenes = [scene, { name: 'form error', route: '/', steps: [{ action: 'click' as const, text: 'Open modal' }, { action: 'fill' as const, selector: '#name', value: 'invalid' }, { action: 'press' as const, selector: '#name', value: 'Tab' }, { action: 'click' as const, text: 'Submit' }], expect: '#error' }, { name: 'blocked', route: '/', steps: [], expect: '#missing' }, { name: 'clean storage', route: '/', steps: [], expect: '#storage-clean' }];
   const outDir = join(cwd, 'report');
@@ -66,4 +66,16 @@ it('uses one normalized identity after dynamic params end with a slash', async (
   const result = await runCompare({ cwd, base: join(cwd, 'site'), head: join(cwd, 'site'), viewports: [{ name: 'desktop', width: 700, height: 500 }], settleMs: 0 });
   expect(result.results).toHaveLength(2);
   expect(result.results.find(item => item.scene)?.status).toBe('unchanged');
+}, 30000);
+
+it('preserves the post-action scroll position for viewport-only scenes', async () => {
+  const cwd = await mkdtemp(join(tmpdir(), 'proofshot-scenes-scroll-'));
+  const site = join(cwd, 'site'); await mkdir(site);
+  await writeFile(join(site, 'index.html'), `<h1>Top</h1><div style="height:1800px"></div><button id="show" onclick="document.querySelector('#panel').hidden=false">Show result</button><div id="panel" hidden style="height:100px;width:100%;background:rgb(255,0,0)">Result</div>`);
+  const result = await runCompare({ cwd, base: site, head: site, routes: ['/'], scenes: [{ name: 'below fold', route: '/', steps: [{ action: 'click', selector: '#show' }], expect: '#panel' }], viewports: [{ name: 'desktop', width: 700, height: 500 }], fullPage: false, settleMs: 0 });
+  const capture = result.results.find(item => item.scene)!;
+  expect(capture.status).toBe('unchanged');
+  const png = PNG.sync.read(await readFile(join(result.outDir, capture.images.after!)));
+  let red = 0; for (let i=0;i<png.data.length;i+=4) if(png.data[i]!>240&&png.data[i+1]!<20&&png.data[i+2]!<20)red++;
+  expect(red).toBeGreaterThan(1000);
 }, 30000);
