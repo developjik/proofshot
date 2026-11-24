@@ -112,3 +112,8 @@ export function isUrl(target: string): boolean {
 export function sceneArtifactId(route: string, name: string): string {
   return `scene-${createHash("sha256").update(JSON.stringify([normalizeRoute(route), name])).digest("hex")}`;
 }
+
+/** Browser-equivalent local route identity, without decoding encoded separators. */
+export function routeIdentity(route: string): string {
+  return new URL(normalizeRoute(route), 'http://proofshot.invalid').href;
+}
