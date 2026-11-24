@@ -5,11 +5,11 @@ import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { runCompare, normalizeScenes } from '../../dist/src/index.js';
+import { runCompare, normalizeScenes, applyRouteParams, normalizeRoute } from '../../dist/src/index.js';
 
 const hash = x => createHash('sha256').update(x).digest('hex');
 export function bindEvidence(binding, actual) {
-  for (const key of ['sceneHash', 'baseCommit', 'headCommit', 'viewportHash']) if (binding[key] !== actual[key]) throw new Error(`Evidence binding mismatch: ${key}`);
+  for (const key of ['sceneHash', 'baseCommit', 'headCommit', 'viewportHash', 'baseContentHash', 'headContentHash']) if (binding[key] !== actual[key]) throw new Error(`Evidence binding mismatch: ${key}`);
 }
 const md = value => String(value).replace(/[\\`*_{}\[\]()<>|!#\r\n]/g, c => /[\r\n]/.test(c) ? ' ' : `\\${c}`);
 const link = file => file.split(sep).map(encodeURIComponent).join('/');
@@ -41,7 +41,10 @@ async function targetInfo(path, commit) {
 }
 
 export async function runPack(config, livesay) {
-  const scenes = normalizeScenes(config.scenes);
+  const scenes = normalizeScenes(config.scenes).map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) }));
+  if (scenes.some(s => /\[[^\]]+\]|:[A-Za-z_]/.test(s.route))) throw new Error('Resolve scene route parameters in manifest params');
+  const graceMs = config.graceMs ?? 1200;
+  if (!Number.isInteger(graceMs) || graceMs < 1200 || graceMs > 5000) throw new Error('graceMs must be 1200..5000');
   if (scenes.length > 20) throw new Error('Sample supports at most 20 scenes');
   if (!scenes.length) throw new Error('At least one existing proofshot SceneSpec is required');
   const viewport = config.viewport ?? { name: 'desktop', width: 1280, height: 800 };
@@ -55,8 +58,8 @@ export async function runPack(config, livesay) {
   try { if ((await (await import('node:fs/promises')).readdir(out)).length) throw new Error('Output directory must be empty'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   for (const target of [base.dir, head.dir]) { const rel = relative(target, out); if (!rel || (!rel.startsWith('..' + sep) && !isAbsolute(rel) && rel !== '..')) throw new Error('Output must be outside both build directories'); }
   await mkdir(out, { recursive: true });
-  const binding = { sceneHash: hash(JSON.stringify(scenes)), viewportHash: hash(JSON.stringify(viewport)), baseCommit: base.commit, headCommit: head.commit };
-  const captures = new Map(); const failures = [];
+  const binding = { sceneHash: hash(JSON.stringify(scenes)), viewportHash: hash(JSON.stringify(viewport)), baseCommit: base.commit, headCommit: head.commit, baseContentHash: base.contentHash, headContentHash: head.contentHash };
+  const captures = new Map(); const failures = []; const baselines = new Map();
   const key = capture => `${capture.side}\0${capture.scene}`;
   const observer = {
     async beforeNavigate(page, capture) {
@@ -69,21 +72,30 @@ export async function runPack(config, livesay) {
       page.on('popup', popup => popup.close());
       try { await livesay.installProbe(page); } catch { failures.push({ side: capture.side, scene: capture.scene, reason: 'probe-install-failed' }); }
     },
+    async beforeScene(page, capture) {
+      try { const snapshot = await livesay.readProbeSnapshot(page); baselines.set(key(capture), snapshot.answers.map(a => a.id)); } catch {}
+    },
     async beforeScreenshot(page, capture) {
       if (!capture.scene) return;
       try {
-        const status = await livesay.waitForAnswer(page, { timeoutMs: 1500 });
-        if (status !== 'marked') throw new Error('answer end not observed');
-        await page.waitForTimeout(300);
+        const oldIds = baselines.get(key(capture));
+        if (!oldIds) throw new Error('scene start snapshot missing');
+        await page.waitForFunction(ids => {
+          const answers = window.__livesayProbe?.snapshot().answers.filter(a => !ids.includes(a.id)) ?? [];
+          return answers.length > 0 && answers.every(a => a.outcome !== 'running');
+        }, oldIds, { timeout: 1500 });
+        await page.waitForTimeout(graceMs);
         const snapshot = await livesay.readProbeSnapshot(page);
-        if (!snapshot.events.length || !snapshot.answers.some(a => a.outcome !== 'running')) throw new Error('empty recording');
+        if (!snapshot.events.length || !snapshot.answers.filter(a => !oldIds.includes(a.id)).length || snapshot.answers.some(a => a.outcome === 'running')) throw new Error('empty recording');
         const report = livesay.audit(snapshot, { profile: 'nvda-like' });
         const item = { binding: { ...binding }, scene: capture.scene, side: capture.side, report };
         captures.set(key(capture), item);
       } catch { failures.push({ side: capture.side, scene: capture.scene, reason: 'announcement-unverified' }); }
     },
   };
-  const visual = await runCompare({ base: base.dir, head: head.dir, baseRef: base.commit, headRef: head.commit, routes: [...new Set(scenes.map(s => s.route))], scenes, viewports: [viewport], outDir: out, observer, settleMs: 100, collectA11y: true });
+  // Do not inherit an unrelated ambient .proofshot.json.
+  const configPath = join(out, 'capture-config.json'); await writeFile(configPath, '{}');
+  const visual = await runCompare({ configPath, base: base.dir, head: head.dir, baseRef: base.commit, headRef: head.commit, routes: [...new Set(scenes.map(s => s.route))], scenes, viewports: [viewport], outDir: out, observer, settleMs: 100, collectA11y: true });
   // Refuse targets that changed during capture, even with unchanged git HEAD.
   for (const [input, before] of [[config.base, base], [config.head, head]]) {
     if ((await targetInfo(input, before.commit)).contentHash !== before.contentHash) throw new Error('Build input changed during capture');
@@ -93,18 +105,21 @@ export async function runPack(config, livesay) {
     const v = visual.results.find(r => r.scene === scene.name && r.viewport === viewport.name && r.route === scene.route);
     const before = captures.get(`base\0${scene.name}`), after = captures.get(`head\0${scene.name}`);
     const row = { scene: scene.name, binding, status: 'unverified', visual: v ?? null, announcement: null, files: {} };
+    for (const [side, item] of [['base', before], ['head', after]]) {
+      if (!item) continue;
+      bindEvidence(binding, item.binding);
+      if (item.scene !== scene.name) throw new Error('Scene identity mismatch');
+      const json = `scene-${index}-${side}-livesay.json`, html = `scene-${index}-${side}-livesay.html`;
+      await writeFile(join(out, json), JSON.stringify({ binding, scene: scene.name, report: item.report }, null, 2));
+      await writeFile(join(out, html), livesay.renderHtml(item.report));
+      row.files[side] = { json, html };
+    }
     if (before && after && v && v.status !== 'error') {
-      bindEvidence(binding, before.binding); bindEvidence(binding, after.binding);
-      if (before.scene !== scene.name || after.scene !== scene.name) throw new Error('Scene identity mismatch');
-      const delta = livesay.compareReports(before.report, after.report);
-      row.status = 'verified'; row.announcement = delta;
       row.transcripts = { base: before.report.utterances.map(u => u.text), head: after.report.utterances.map(u => u.text) };
-      for (const [side, report] of [['base', before.report], ['head', after.report]]) {
-        const json = `scene-${index}-${side}-livesay.json`, html = `scene-${index}-${side}-livesay.html`;
-        await writeFile(join(out, json), JSON.stringify({ binding, scene: scene.name, report }, null, 2));
-        await writeFile(join(out, html), livesay.renderHtml(report));
-        row.files[side] = { json, html };
-      }
+      try {
+        row.announcement = livesay.compareReports(before.report, after.report);
+        row.status = 'verified';
+      } catch { failures.push({ scene: scene.name, reason: 'announcement-comparison-unverified' }); }
     }
     rows.push(row);
   }
@@ -119,7 +134,7 @@ export async function runPack(config, livesay) {
       for (const metric of row.announcement.metrics) lines.push(`| ${md(metric.metric)} | ${metric.before} | ${metric.after} | ${metric.delta} |`);
       lines.push('', '#### Simulated transcript text', '', '| Before | After |', '| --- | --- |');
       for (let i = 0; i < Math.max(row.transcripts.base.length, row.transcripts.head.length); i++) lines.push(`| ${md(row.transcripts.base[i] ?? '')} | ${md(row.transcripts.head[i] ?? '')} |`);
-    } else lines.push('', 'Announcement capture is UNVERIFIED, never treated as an empty passing transcript. See evidence-pack.json for failures.');
+    } else { for (const [side, files] of Object.entries(row.files)) lines.push(`[${side} collected original](${files.html})`); lines.push('', 'Announcement capture is UNVERIFIED, never treated as an empty passing transcript. See evidence-pack.json for failures.'); }
     lines.push('');
   }
   await writeFile(join(out, 'pr-comment.md'), lines.join('\n'));
