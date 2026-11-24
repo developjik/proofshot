@@ -58,7 +58,9 @@ export function inferRoutes(
   }
 
   const routerRoutes = options.routerRoutes ?? [];
-  const routerFileSet = new Set(routerRoutes.map((route) => toPosix(route.file)));
+  const routerFileSet = new Set(
+    routerRoutes.map((route) => toPosix(route.file)),
+  );
   const out: RouteCandidate[] = [];
   const seen = new Set<string>();
 
@@ -77,8 +79,7 @@ export function inferRoutes(
       framework,
       source: toPosix(source),
       reason,
-      dynamic:
-        dynamic ?? /\[[^\]]+\]|:[A-Za-z_][A-Za-z0-9_]*/.test(normalized),
+      dynamic: dynamic ?? /\[[^\]]+\]|:[A-Za-z_][A-Za-z0-9_]*/.test(normalized),
     });
   };
 
@@ -158,7 +159,9 @@ export function inferRoutes(
 }
 
 /** `src/app/dashboard/page.tsx` -> `/dashboard` (Next.js App Router). */
-export function nextAppRoute(file: string): { route: string; reason: string } | null {
+export function nextAppRoute(
+  file: string,
+): { route: string; reason: string } | null {
   const match = /^(?:src\/)?app\/(.+)$/.exec(file);
   if (!match) return null;
   const rest = match[1] ?? "";
@@ -215,12 +218,11 @@ export function staticHtmlRoute(file: string): string | null {
   return normalizeRoute(route);
 }
 
-function viteSpaRoute(
-  file: string,
-): { route: string; reason: string } | null {
-  const match = /^(?:src\/)?(pages|views|routes)\/(.+)\.(tsx|ts|jsx|js|vue|svelte)$/.exec(
-    file,
-  );
+function viteSpaRoute(file: string): { route: string; reason: string } | null {
+  const match =
+    /^(?:src\/)?(pages|views|routes)\/(.+)\.(tsx|ts|jsx|js|vue|svelte)$/.exec(
+      file,
+    );
   if (match) {
     const rest = match[2] ?? "";
     const segments = rest.split("/");
@@ -285,7 +287,10 @@ export function detectNextProject(cwd: string): boolean {
  * This is a heuristic (no bundler, no runtime), deliberately conservative:
  * only literal `path` values are read, so dynamic expressions are skipped.
  */
-export function discoverRouterRoutes(cwd: string, maxFiles = 400): RouterRoute[] {
+export function discoverRouterRoutes(
+  cwd: string,
+  maxFiles = 400,
+): RouterRoute[] {
   const files = walkSourceFiles(cwd, maxFiles);
   const routes: RouterRoute[] = [];
   for (const file of files) {
@@ -297,7 +302,11 @@ export function discoverRouterRoutes(cwd: string, maxFiles = 400): RouterRoute[]
     } catch {
       continue;
     }
-    if (!/(<Route\b|createBrowserRouter|createRoutesFromElements|useRoutes\()/.test(source)) {
+    if (
+      !/(<Route\b|createBrowserRouter|createRoutesFromElements|useRoutes\()/.test(
+        source,
+      )
+    ) {
       continue;
     }
     routes.push(...parseRouterSource(stripComments(source), file));
@@ -350,7 +359,10 @@ export function stripComments(source: string): string {
     }
     if (char === "/" && next === "*") {
       index += 2;
-      while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) {
+      while (
+        index < source.length &&
+        !(source[index] === "*" && source[index + 1] === "/")
+      ) {
         index += 1;
       }
       index += 2;
@@ -384,15 +396,98 @@ export function stripComments(source: string): string {
 export function parseRouterSource(source: string, file: string): RouterRoute[] {
   const routes: RouterRoute[] = [];
 
-  const jsxRoute = /<Route\b([^>]*)>/g;
-  let match: RegExpExecArray | null;
-  while ((match = jsxRoute.exec(source)) !== null) {
-    const attrs = match[1] ?? "";
-    const path = readPathAttribute(attrs);
-    if (path === null) continue;
+  // Scan complete Route tags, respecting quoted attributes and JSX expressions.
+  // A regex ending at the first > truncates element={<Layout />} and loses
+  // both nesting and self-closing information.
+  const stack: Array<{ route: string; component?: string }> = [];
+  let cursor = 0;
+  const unsupported = (): never => {
+    throw new Error(
+      `Cannot infer static React Router routes in ${file}; set explicit routes in .proofshot.json or --routes.`,
+    );
+  };
+  while (cursor < source.length) {
+    const c = source[cursor];
+    if (c === '"' || c === "'" || c === "`") {
+      const quote = c;
+      cursor++;
+      while (cursor < source.length) {
+        const ch = source[cursor++];
+        if (ch === "\\") cursor++;
+        else if (ch === quote) break;
+      }
+      continue;
+    }
+    if (source.startsWith("//", cursor)) {
+      while (cursor < source.length && source[cursor] !== "\n") cursor++;
+      continue;
+    }
+    if (source.startsWith("/*", cursor)) {
+      const end = source.indexOf("*/", cursor + 2);
+      cursor = end < 0 ? source.length : end + 2;
+      continue;
+    }
+    const start = /^<(\/?)Route(?=[\s/>])/.exec(source.slice(cursor));
+    if (!start) {
+      cursor++;
+      continue;
+    }
+    const closing = start[1] === "/";
+    let end = cursor + start[0].length,
+      depth = 0,
+      quote = "";
+    for (; end < source.length; end++) {
+      const ch = source[end]!;
+      if (quote) {
+        if (ch === "\\") end++;
+        else if (ch === quote) quote = "";
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === "`") {
+        quote = ch;
+        continue;
+      }
+      if (ch === "{") depth++;
+      else if (ch === "}") depth--;
+      else if (ch === ">" && depth === 0) break;
+    }
+    if (end === source.length) unsupported();
+    const attrs = source.slice(cursor + start[0].length, end);
+    cursor = end + 1;
+    if (closing) {
+      if (!stack.length) unsupported();
+      stack.pop();
+      continue;
+    }
+    if (/\{\s*\.\.\./.test(attrs)) unsupported();
+    const declared = readPathAttribute(attrs);
+    if (/\bpath\s*=/.test(attrs) && declared === null) unsupported();
+    const parent = stack.at(-1)?.route ?? "/";
+    const index = /\bindex(?:\s|=|$)/.test(attrs);
+    if (
+      index &&
+      /\bindex\s*=/.test(attrs) &&
+      !/\bindex\s*=\s*\{\s*true\s*\}/.test(attrs)
+    )
+      unsupported();
+    const child = index ? "" : (declared ?? "");
+    if (
+      child.startsWith("/") &&
+      parent !== "/" &&
+      child !== parent &&
+      !child.startsWith(parent + "/")
+    )
+      unsupported();
+    const route = child.startsWith("/")
+      ? normalizeRoute(child)
+      : normalizeRoute(`${parent}/${child}`);
     const component = readComponentAttribute(attrs);
-    routes.push({ route: path, component, file });
+    if (declared !== null || index || component)
+      routes.push({ route, component, file });
+    if (!/\/\s*$/.test(attrs)) stack.push({ route, component });
   }
+  if (stack.length) unsupported();
+  let match: RegExpExecArray | null;
 
   // Object style: { path: "/pricing", element: <Pricing /> } or { path, Component }
   const objectPath = /path\s*:\s*(["'`])([^"'`]*)\1/g;
@@ -401,7 +496,9 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
     if (!path.startsWith("/") && path !== "*") continue;
     const window = source.slice(match.index, match.index + 400);
     const element = /element\s*:\s*<\s*([A-Za-z0-9_$]+)/.exec(window);
-    const component = /(?:Component|component)\s*:\s*([A-Za-z0-9_$]+)/.exec(window);
+    const component = /(?:Component|component)\s*:\s*([A-Za-z0-9_$]+)/.exec(
+      window,
+    );
     routes.push({
       route: path,
       component: element?.[1] ?? component?.[1],
@@ -413,18 +510,26 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
 }
 
 function readPathAttribute(attrs: string): string | null {
-  const literal = /path\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*["'`]([^"'`]*)["'`]\s*\})/.exec(
-    attrs,
-  );
-  if (literal) return literal[1] ?? literal[2] ?? literal[3] ?? null;
-  if (/\bindex\b/.test(attrs)) return "/";
+  const literal =
+    /path\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*["'`]([^"'`]*)["'`]\s*\})/.exec(
+      attrs,
+    );
+  if (literal) {
+    const value = literal[1] ?? literal[2] ?? literal[3] ?? null;
+    if (value?.includes("${")) return null;
+    return value;
+  }
+  if (/\bindex\b/.test(attrs)) return "";
   return null;
 }
 
 function readComponentAttribute(attrs: string): string | undefined {
   const element = /element\s*=\s*\{\s*<\s*([A-Za-z0-9_$]+)/.exec(attrs);
   if (element?.[1]) return element[1];
-  const component = /component\s*=\s*(?:\{\s*([A-Za-z0-9_$]+)|"([^"]+)")/.exec(attrs);
+  const component =
+    /(?:Component|component)\s*=\s*(?:\{\s*([A-Za-z0-9_$]+)|"([^"]+)")/.exec(
+      attrs,
+    );
   return component?.[1] ?? component?.[2];
 }
 
@@ -472,7 +577,12 @@ function walkSourceFiles(cwd: string, maxFiles: number): string[] {
 
   // Router definitions often live in App.tsx at the root of src/; those are
   // already covered. Also look at a couple of conventional root files.
-  for (const candidate of ["src/App.tsx", "src/App.jsx", "src/main.tsx", "src/main.jsx"]) {
+  for (const candidate of [
+    "src/App.tsx",
+    "src/App.jsx",
+    "src/main.tsx",
+    "src/main.jsx",
+  ]) {
     if (out.length >= maxFiles) break;
     if (out.includes(candidate)) continue;
     try {
