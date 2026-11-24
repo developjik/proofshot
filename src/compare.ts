@@ -5,7 +5,7 @@ import { applyRouteParams, loadConfig } from "./config";
 import { computeA11yDelta } from "./a11y";
 import { comparePngs } from "./diff";
 import { changedFiles, shortSha } from "./git";
-import { captureSide, DEFAULT_VIEWPORTS, type PageCapture } from "./capture";
+import { captureSide, DEFAULT_VIEWPORTS, type PageCapture, type CaptureObserver } from "./capture";
 import {
   computeStats,
   writeReport,
@@ -39,6 +39,7 @@ export interface CompareOptions {
   axe?: boolean;
   failOn?: FailOn[];
   log?: (message: string) => void;
+  observer?: CaptureObserver;
 }
 
 export interface CompareOutcome {
@@ -113,6 +114,7 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
       collectA11y,
       axe: options.axe,
       axeCwd: cwd,
+      observer: options.observer,
     }),
     captureSide({
       target: head,
@@ -126,6 +128,7 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
       collectA11y,
       axe: options.axe,
       axeCwd: cwd,
+      observer: options.observer,
     }),
   ]);
 
