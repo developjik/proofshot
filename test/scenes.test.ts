@@ -89,15 +89,15 @@ it('preserves the post-action scroll position for viewport-only scenes', async (
 it('captures scenes when CSP forbids inline styles and scripts', async () => {
   const cwd = await mkdtemp(join(tmpdir(), 'proofshot-scenes-csp-'));
   const site = join(cwd, 'site'); await mkdir(site);
-  await writeFile(join(site, 'index.html'), `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'none'; script-src 'none'"><h1 id="ready">CSP scene</h1>`);
-  const result = await runCompare({ cwd, base: site, head: site, routes: ['/'], scenes: [{ name: 'CSP', route: '/', steps: [{ action: 'wait', selector: '#ready' }], expect: '#ready' }], viewports: [{ name: 'desktop', width: 700, height: 500 }], settleMs: 0 });
+  await writeFile(join(site, 'index.html'), `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'none'; script-src 'none'"><form><input name="style"></form><h1 id="ready" style="color:red">CSP scene</h1>`);
+  const result = await runCompare({ cwd, base: site, head: site, routes: ['/'], scenes: [{ name: 'CSP', route: '/', steps: [{ action: 'wait', selector: '[style="color:red"]' }], expect: '#ready' }], viewports: [{ name: 'desktop', width: 700, height: 500 }], settleMs: 0 });
   expect(result.results.find(item => item.scene)?.status).toBe('unchanged');
 }, 30000);
 
 it('waits for an internal panel explicitly scrolled smoothly by the app', async () => {
   const cwd = await mkdtemp(join(tmpdir(), 'proofshot-scenes-panel-'));
   const site = join(cwd, 'site'); await mkdir(site);
-  await writeFile(join(site, 'index.html'), `<button id="scroll" onclick="document.querySelector('#panel').scrollTo({top:1500,behavior:'smooth'})">Scroll panel</button><div id="panel" style="height:300px;overflow:auto;scroll-behavior:smooth"><div style="height:1500px"></div><div style="height:200px;background:red">Target</div></div>`);
+  await writeFile(join(site, 'index.html'), `<button id="scroll" onclick="document.querySelector('#host').shadowRoot.querySelector('#panel').scrollTo({top:1500,behavior:'smooth'})">Scroll panel</button><div id="host"></div><script>document.querySelector("#host").attachShadow({mode:"open"}).innerHTML='<div id="panel" style="height:300px;overflow:auto;scroll-behavior:smooth"><div style="height:1500px"></div><div style="height:200px;background:red">Target</div></div>';</script>`);
   const result = await runCompare({ cwd, base: site, head: site, routes: ['/'], scenes: [{ name: 'panel', route: '/', steps: [{ action: 'click', selector: '#scroll' }] }], viewports: [{ name: 'desktop', width: 700, height: 500 }], settleMs: 0 });
   const capture = result.results.find(item => item.scene)!;
   expect(capture.status).toBe('unchanged');
