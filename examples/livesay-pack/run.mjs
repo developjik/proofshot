@@ -44,7 +44,7 @@ async function targetInfo(path, commit) {
 export function observationComplete({ids, baselineOrigin, grace, observationStart}) {
   const snapshot = window.__livesayProbe?.snapshot();
   // A document replacement loses the prior probe transcript. Never call it verified.
-  if (performance.timeOrigin !== baselineOrigin) return false;
+  if (performance.timeOrigin !== baselineOrigin) return 'document-changed';
   const excluded = ids;
   const answers = snapshot?.answers.filter(a => !excluded.includes(a.id)) ?? [];
   return answers.length > 0 && answers.every(a => a.outcome !== 'running' && Number.isFinite(a.endedAt)) && performance.timeOrigin + performance.now() - observationStart >= grace && snapshot.capturedAt - Math.max(...answers.map(a => a.endedAt)) >= grace;
