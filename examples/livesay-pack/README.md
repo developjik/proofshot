@@ -49,7 +49,10 @@ not an untrusted report. No shell command is assembled from manifest text.
   is awaited with no running answers and a configurable grace period (default
   1,200 ms, range 1,200–5,000 ms), then the screenshot and DOM accessibility result are captured.
 - Exact normalized scene/steps hash, viewport hash, git base/head IDs, input
-  content hashes (also in every individual report binding), tool versions and original report links are preserved.
+  content hashes in the pack and each announcement JSON binding, tool versions
+  and original report links are preserved. Announcement HTML and original
+  visual/DOM reports do not embed the binding: keep evidence-pack.json and the
+  JSON sidecars with them, not isolated HTML files.
 - Base/head announcement transcripts and existing livesay regression metrics
   are shown together. This does not add a competing regression judge.
 - Missing probe, missing answer-end marker, empty recording or blocked scene is
