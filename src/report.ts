@@ -85,7 +85,10 @@ export function buildReportMarkdown(
 
   if (stats.total === 0) {
     lines.push("_No screens changed and no captures were produced._");
-    return `${lines.join("\n")}\n`;
+    const markdown = `${lines.join("\n")}\n`;
+  if (markdown.length <= 60000) return markdown;
+  const cutoff = markdown.lastIndexOf("\n", 59000);
+  return markdown.slice(0, cutoff) + "\n\nReport shortened for PR comment limits. Full issue details are in report.json.\n";
   }
 
   lines.push("| Route | Viewport | Pixel diff | a11y | Console | Status |");
@@ -185,8 +188,10 @@ export function buildReportMarkdown(
         continue;
       }
       lines.push(`New: ${axe.regressions.length}; Existing: ${axe.existing.length}; Fixed: ${axe.fixes.length}; Needs manual review: ${axe.after.incomplete ?? 0}`, '');
+      if (axe.after.partial) lines.push(`Partial: ${axe.after.reason}`, '');
       for (const [label, issues] of [['New', axe.regressions], ['Existing', axe.existing], ['Fixed', axe.fixes]] as const) {
-        for (const issue of issues) lines.push(`- ${label}: ${issue.rule} (${issue.impact ?? 'unknown'}) at ${JSON.stringify(issue.target)}`);
+        for (const issue of issues.slice(0, 20)) lines.push(`- ${label}: ${issue.rule} (${issue.impact ?? 'unknown'}) at ${JSON.stringify(issue.target).slice(0, 200)}`);
+        if (issues.length > 20) lines.push(`- ${issues.length - 20} more ${label.toLowerCase()} issues in report.json`);
       }
       lines.push('');
     }
@@ -200,7 +205,10 @@ export function buildReportMarkdown(
     `<sub>Generated ${meta.generatedAt} by [proofshot](https://github.com/developjik/proofshot) · base source \`${meta.baseSource}\` · head source \`${meta.headSource}\`</sub>`,
   );
 
-  return `${lines.join("\n")}\n`;
+  const markdown = `${lines.join("\n")}\n`;
+  if (markdown.length <= 60000) return markdown;
+  const cutoff = markdown.lastIndexOf("\n", 59000);
+  return markdown.slice(0, cutoff) + "\n\nReport shortened for PR comment limits. Full issue details are in report.json.\n";
 }
 
 function imageCell(file: string | undefined, label: string): string {
