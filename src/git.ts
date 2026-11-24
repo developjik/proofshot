@@ -1,13 +1,18 @@
 import { execFileSync } from "node:child_process";
 
 export function runGit(args: string[], cwd: string): string | null {
+  return gitOutput(args, cwd)?.trim() ?? null;
+}
+
+/** Filename output must bypass display quoting and preserve whitespace. */
+function gitOutput(args: string[], cwd: string): string | null {
   try {
     return execFileSync("git", args, {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
       maxBuffer: 20 * 1024 * 1024,
-    }).trim();
+    });
   } catch {
     return null;
   }
@@ -32,15 +37,15 @@ export function changedFiles(options: {
   const head = options.headRef ?? "HEAD";
   const range = `${base}...${head}`;
 
-  const diff = runGit(["diff", "--name-only", "--diff-filter=ACMR", range], options.cwd);
+  const diff = gitOutput(["diff", "--name-only", "-z", "--diff-filter=ACMR", range], options.cwd);
   if (diff !== null) {
-    return { files: splitLines(diff), range };
+    return { files: splitPaths(diff), range };
   }
 
-  const direct = runGit(["diff", "--name-only", "--diff-filter=ACMR", base, head], options.cwd);
+  const direct = gitOutput(["diff", "--name-only", "-z", "--diff-filter=ACMR", base, head], options.cwd);
   if (direct !== null) {
     return {
-      files: splitLines(direct),
+      files: splitPaths(direct),
       range: `${base}..${head}`,
       warning: `merge-base diff with ${base} failed; used a direct diff instead`,
     };
@@ -63,9 +68,7 @@ export function revParse(cwd: string, ref: string): string | null {
   return sha && sha.length > 0 ? sha : null;
 }
 
-function splitLines(value: string): string[] {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+function splitPaths(value: string): string[] {
+  // Git -z emits literal pathnames separated by NUL, never C-quoted lines.
+  return value.split("\0").filter((path) => path.length > 0);
 }
