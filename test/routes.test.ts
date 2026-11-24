@@ -266,3 +266,16 @@ describe("JSX AST route boundaries", () => {
     ]);
   });
 });
+
+
+describe("router AST source and layout propagation",()=>{
+ it("parses visible URLs and decorators without corrupting JSX",()=>{
+ const r=parseRouterSource(`@sealed class Model {} const App=()=> <Route path="/dashboard" element={<h1>https://example.test/help</h1>}><Route path="settings" element={<Settings />} /></Route>;`,"src/App.tsx");expect(r.map(x=>x.route)).toContain('/dashboard/settings');
+ });
+ it("maps changed pathless layouts to descendant pages without a synthetic root",()=>{
+ const r=parseRouterSource(`<Route element={<AuthLayout />}><Route path="/dashboard"><Route path="settings" element={<Settings />} /></Route></Route>`,"src/App.tsx");const paths=inferRoutes(['src/layouts/AuthLayout.tsx'],{routerRoutes:r}).map(x=>x.route);expect(paths).toContain('/dashboard/settings');expect(paths).not.toContain('/');
+ });
+ it("honors Component rendering even with element null",()=>{
+ const r=parseRouterSource(`<Route path="/dashboard" element={null} Component={Dashboard} />`,"src/App.tsx");expect(inferRoutes(['src/pages/Dashboard.tsx'],{routerRoutes:r})[0]?.route).toBe('/dashboard');
+ });
+});
