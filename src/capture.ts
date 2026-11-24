@@ -32,6 +32,7 @@ export interface CaptureOptions {
 }
 export interface CaptureObserver {
   beforeNavigate?(page: import('playwright').Page, capture: PageCapture): Promise<void>;
+  beforeScene?(page: import('playwright').Page, capture: PageCapture): Promise<void>;
   beforeScreenshot?(page: import('playwright').Page, capture: PageCapture): Promise<void>;
 }
 
@@ -201,6 +202,7 @@ async function capturePage(
     await page.waitForTimeout(120);
 
     if (options.scene) {
+      await options.observer?.beforeScene?.(page, base);
       const deadline = Date.now() + options.timeoutMs;
       const remaining = () => {
         const ms = deadline - Date.now();
