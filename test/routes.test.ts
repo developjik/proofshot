@@ -8,7 +8,8 @@ import {
   staticHtmlRoute,
 } from "../src/routes";
 
-const routesOf = (files: string[]) => inferRoutes(files).map((candidate) => candidate.route);
+const routesOf = (files: string[]) =>
+  inferRoutes(files).map((candidate) => candidate.route);
 
 describe("Next.js App Router", () => {
   it("maps page files to routes", () => {
@@ -16,14 +17,24 @@ describe("Next.js App Router", () => {
       route: "/",
       reason: "Next.js App Router page app/page.tsx",
     });
-    expect(nextAppRoute("src/app/dashboard/page.tsx")?.route).toBe("/dashboard");
-    expect(nextAppRoute("src/app/settings/billing/page.tsx")?.route).toBe("/settings/billing");
+    expect(nextAppRoute("src/app/dashboard/page.tsx")?.route).toBe(
+      "/dashboard",
+    );
+    expect(nextAppRoute("src/app/settings/billing/page.tsx")?.route).toBe(
+      "/settings/billing",
+    );
   });
 
   it("drops route groups and keeps dynamic segments", () => {
-    expect(nextAppRoute("src/app/(marketing)/pricing/page.tsx")?.route).toBe("/pricing");
-    expect(nextAppRoute("src/app/blog/[slug]/page.tsx")?.route).toBe("/blog/[slug]");
-    expect(inferRoutes(["src/app/blog/[slug]/page.tsx"])[0]?.dynamic).toBe(true);
+    expect(nextAppRoute("src/app/(marketing)/pricing/page.tsx")?.route).toBe(
+      "/pricing",
+    );
+    expect(nextAppRoute("src/app/blog/[slug]/page.tsx")?.route).toBe(
+      "/blog/[slug]",
+    );
+    expect(inferRoutes(["src/app/blog/[slug]/page.tsx"])[0]?.dynamic).toBe(
+      true,
+    );
   });
 
   it("ignores non-page files", () => {
@@ -39,7 +50,9 @@ describe("Next.js Pages Router", () => {
     expect(nextPagesRoute("pages/index.tsx")?.route).toBe("/");
     expect(nextPagesRoute("pages/about.tsx")?.route).toBe("/about");
     expect(nextPagesRoute("pages/blog/index.tsx")?.route).toBe("/blog");
-    expect(nextPagesRoute("src/pages/blog/[slug].tsx")?.route).toBe("/blog/[slug]");
+    expect(nextPagesRoute("src/pages/blog/[slug].tsx")?.route).toBe(
+      "/blog/[slug]",
+    );
   });
 
   it("ignores app shell files and API routes", () => {
@@ -60,11 +73,15 @@ describe("static HTML", () => {
 
 describe("inferRoutes", () => {
   it("dedupes routes touched by several files", () => {
-    expect(routesOf(["src/app/page.tsx", "src/app/globals.css"])).toEqual(["/"]);
+    expect(routesOf(["src/app/page.tsx", "src/app/globals.css"])).toEqual([
+      "/",
+    ]);
   });
 
   it("skips tests, docs and build output", () => {
-    expect(routesOf(["src/app/page.test.tsx", "README.md", "dist/index.html"])).toEqual(["/"]);
+    expect(
+      routesOf(["src/app/page.test.tsx", "README.md", "dist/index.html"]),
+    ).toEqual(["/"]);
   });
 
   it("honours .proofshot.json routes over inference", () => {
@@ -85,7 +102,9 @@ describe("inferRoutes", () => {
   it("maps shared components and entries to the home page (Vite SPA)", () => {
     expect(routesOf(["src/App.tsx"])).toEqual(["/"]);
     expect(routesOf(["src/components/Button.tsx"])).toEqual(["/"]);
-    expect(routesOf(["src/pages/UserSettings.tsx"])).toEqual(["/user-settings"]);
+    expect(routesOf(["src/pages/UserSettings.tsx"])).toEqual([
+      "/user-settings",
+    ]);
   });
 
   it("reads src/pages as Next.js Pages Router in a Next project", () => {
@@ -105,7 +124,11 @@ describe("React Router", () => {
         <Route index element={<Home />} />
       </Routes>`;
     const routes = parseRouterSource(source, "src/App.tsx");
-    expect(routes.map((route) => route.route)).toEqual(["/", "/pricing", "/settings"]);
+    expect(routes.map((route) => route.route)).toEqual([
+      "/",
+      "/pricing",
+      "/settings",
+    ]);
     expect(routes[0]?.component).toBe("Home");
     expect(routes[1]?.component).toBe("Pricing");
   });
@@ -118,7 +141,11 @@ describe("React Router", () => {
         { path: "/login", Component: Login },
       ]);`;
     const routes = parseRouterSource(source, "src/router.tsx");
-    expect(routes.map((route) => route.route)).toEqual(["/", "/pricing", "/login"]);
+    expect(routes.map((route) => route.route)).toEqual([
+      "/",
+      "/pricing",
+      "/login",
+    ]);
     expect(routes[2]?.component).toBe("Login");
   });
 
@@ -143,5 +170,60 @@ describe("React Router", () => {
 
   it("returns nothing for a project without router files", () => {
     expect(discoverRouterRoutes(process.cwd())).toEqual([]);
+  });
+});
+
+describe("nested JSX React Router", () => {
+  it("joins relative children and selects the real settings URL", () => {
+    const r = parseRouterSource(
+      `<Routes><Route path="/dashboard" element={<DashboardLayout />}><Route path="settings" element={<Settings />} /></Route></Routes>`,
+      "src/App.tsx",
+    );
+    expect(
+      inferRoutes(["src/pages/Settings.tsx"], { routerRoutes: r }).map(
+        (x) => x.route,
+      ),
+    ).toEqual(["/dashboard/settings"]);
+  });
+  it("keeps index at its parent and pathless layouts transparent", () => {
+    const r = parseRouterSource(
+      `<Route path="/dashboard" element={<Layout />}><Route index element={<Overview />} /><Route element={<Auth />}><Route path="settings" element={<Settings />} /></Route></Route><Route path="/login" element={<Login />} />`,
+      "src/App.tsx",
+    );
+    expect(
+      inferRoutes(["src/pages/Overview.tsx"], { routerRoutes: r }).map(
+        (x) => x.route,
+      ),
+    ).toEqual(["/dashboard"]);
+    expect(
+      inferRoutes(["src/pages/Settings.tsx"], { routerRoutes: r }).map(
+        (x) => x.route,
+      ),
+    ).toEqual(["/dashboard/settings"]);
+    expect(
+      inferRoutes(["src/pages/Login.tsx"], { routerRoutes: r }).map(
+        (x) => x.route,
+      ),
+    ).toEqual(["/login"]);
+  });
+  it("does not mistake quoted Route examples or JSX > expressions for tag boundaries", () => {
+    const r = parseRouterSource(
+      `const example='<Route path="/bad" />';<Route path="/dashboard" element={<Layout label={a > b ? 'x':'y'} />}><Route path={'settings'} element={<Settings />} /></Route>`,
+      "src/App.tsx",
+    );
+    expect(r.map((x) => x.route)).toEqual([
+      "/dashboard",
+      "/dashboard/settings",
+    ]);
+  });
+  it("refuses dynamic parents, spreads and invalid nested absolute paths with manual-route advice", () => {
+    for (const source of [
+      `<Route path={prefix}><Route path="settings" /></Route>`,
+      `<Route {...routes}><Route path="settings" /></Route>`,
+      `<Route path="/dashboard"><Route path="/settings" /></Route>`,
+    ])
+      expect(() => parseRouterSource(source, "src/App.tsx")).toThrow(
+        ".proofshot.json",
+      );
   });
 });
