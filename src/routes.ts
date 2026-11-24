@@ -535,13 +535,13 @@ export function parseRouterSource(source: string, file: string): RouterRoute[] {
     const path = match[2] ?? "";
     if (!path.startsWith("/") && path !== "*") continue;
     const window = objectSource.slice(match.index, match.index + 400);
-    const element = /element\s*:\s*<\s*([A-Za-z0-9_$]+)/.exec(window);
-    const component = /(?:Component|component)\s*:\s*([A-Za-z0-9_$]+)/.exec(
+    const element = /element\s*:\s*<\s*([$\p{ID_Start}][$\u200C\u200D\p{ID_Continue}]*)/u.exec(window);
+    const component = /(?:Component|component)\s*:\s*([$\p{ID_Start}][$\u200C\u200D\p{ID_Continue}]*)/u.exec(
       window,
     );
     routes.push({
       route: path,
-      component: element?.[1] ?? component?.[1],
+      component: element && (!component || element.index < component.index) ? element[1] : component?.[1],
       file,
     });
   }
@@ -564,10 +564,10 @@ function readPathAttribute(attrs: string): string | null {
 }
 
 function readComponentAttribute(attrs: string): string | undefined {
-  const element = /element\s*=\s*\{\s*<\s*([A-Za-z0-9_$]+)/.exec(attrs);
+  const element = /element\s*=\s*\{\s*<\s*([$\p{ID_Start}][$\u200C\u200D\p{ID_Continue}]*)/u.exec(attrs);
   if (element?.[1]) return element[1];
   const component =
-    /(?:Component|component)\s*=\s*(?:\{\s*([A-Za-z0-9_$]+)|"([^"]+)")/.exec(
+    /(?:Component|component)\s*=\s*(?:\{\s*([$\p{ID_Start}][$\u200C\u200D\p{ID_Continue}]*)|"([^"]+)")/u.exec(
       attrs,
     );
   return component?.[1] ?? component?.[2];
