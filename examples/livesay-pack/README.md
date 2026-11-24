@@ -26,7 +26,7 @@ No GitHub token or API key is needed. Sample content has no private data.
 For your own **trusted local synthetic** static builds, supply a JSON manifest
 with `base`, `head` (absolute build directories), `baseCommit`, `headCommit`
 (full git HEAD SHAs), `out` (new/empty directory), `scenes` (SceneSpec array),
-and optional `viewport` (`name`, `width`, `height`). Then run:
+optional `params` for route substitution, optional `graceMs`, and optional `viewport` (`name`, `width`, `height`). Then run:
 
 ```sh
 node examples/livesay-pack/run.mjs manifest.json /absolute/livesay/dist/index.js
@@ -45,10 +45,11 @@ not an untrusted report. No shell command is assembled from manifest text.
 ## What is bound and collected
 
 - One screenshot page per scene/side/viewport. The probe attaches **before
-  navigation on that same page**, the existing scene steps run, announcement end
-  is awaited, then the screenshot and DOM accessibility result are captured.
+  navigation on that same page**, the existing scene steps run, a new scene answer end
+  is awaited with no running answers and a configurable grace period (default
+  1,200 ms, range 1,200–5,000 ms), then the screenshot and DOM accessibility result are captured.
 - Exact normalized scene/steps hash, viewport hash, git base/head IDs, input
-  content hashes, tool versions and original report links are preserved.
+  content hashes (also in every individual report binding), tool versions and original report links are preserved.
 - Base/head announcement transcripts and existing livesay regression metrics
   are shown together. This does not add a competing regression judge.
 - Missing probe, missing answer-end marker, empty recording or blocked scene is
@@ -67,7 +68,8 @@ so a usable visual report can remain with explicit unverified status.
 ## Evidence and tests
 
 The synthetic sample exercises base/head screen and transcript changes. Negative
-checks cover mismatched scene/steps/viewport/commit binding, absent announcements,
+checks also cover stale previous answer markers, delayed completion messages,
+comparison failure, one-sided original preservation and route parameters. They cover mismatched scene/steps/viewport/commit binding, absent announcements,
 blocked capture, wrong HEAD and output/input overlap. The integration workflow
 pins a livesay commit, runs sample plus negative checks, and retains complete
 artifacts for seven days even when a check fails. Existing proofshot tests and
