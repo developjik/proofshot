@@ -66,5 +66,5 @@ test('blocked child frame preserves top-level violations and marks audit partial
 },20000);
 
 test('previously unaudited frame violations are not called new while top-level remains comparable',()=>{
- const issue={rule:'image-alt',impact:'critical',target:['#child','#image'],detail:'alt'};const top={...issue,target:['#top']};const delta=computeAxeDelta({status:'ok',issues:[],partial:true,unauditedFrames:[['#child']]},{status:'ok',issues:[issue,top]});expect(delta.regressions).toEqual([top]);
+ const issue={rule:'image-alt',impact:'critical',target:['#child','#image'],detail:'alt'};const top={...issue,target:['#top']};const delta=computeAxeDelta({status:'ok',issues:[],partial:true,unauditedFrames:[['#child']]},{status:'ok',issues:[issue,top]});expect(delta.regressions).toEqual([top]);expect(delta.unclassified).toEqual([issue]);const replacement={...issue,target:['#child']};expect(computeAxeDelta({status:'ok',issues:[],partial:true,unauditedFrames:[['#child']]},{status:'ok',issues:[replacement]}).regressions).toEqual([replacement]);
 });
