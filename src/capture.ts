@@ -134,11 +134,12 @@ async function capturePage(
 ): Promise<PageCapture> {
   const page = await context.newPage();
   const consoleErrors: string[] = [];
+  let auditing = false;
   page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
+    if (!auditing && message.type() === "error") consoleErrors.push(message.text());
   });
   page.on("pageerror", (error) => {
-    consoleErrors.push(`Uncaught ${error.message}`);
+    if (!auditing) consoleErrors.push(`Uncaught ${error.message}`);
   });
 
   const base: PageCapture = {
@@ -195,10 +196,10 @@ async function capturePage(
     base.width = size.width;
     base.height = size.height;
 
-    if (options.axe) base.axe = await captureAxe(page, options.axeCwd);
     if (options.collectA11y) {
       base.a11y = await captureA11y(page, consoleErrors);
     }
+    if (options.axe) { auditing = true; try { base.axe = await captureAxe(page, options.axeCwd); } finally { auditing = false; } }
   } catch (error) {
     base.error = (error as Error).message;
     base.consoleErrors = consoleErrors;
