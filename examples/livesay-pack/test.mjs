@@ -85,7 +85,16 @@ test('observation predicate rejects old completed answers until final-action qui
   assert.equal(observationComplete({...args,observationStart:now-1300}),true);
  } finally {globalThis.window=old;}
 });
-test('same-tab document navigation does not reset absolute observation elapsed time',async()=>{
+test('same-tab document navigation is unverified because the old transcript is lost',async()=>{
  const c=await fixture(`if(location.pathname==='/second'){const p=window.__livesayProbe;p.mark('start',{id:'x'});document.querySelector('#result').textContent='Navigation completed.';p.mark('done',{id:'x'});}document.querySelector('#open').onclick=()=>{const p=window.__livesayProbe;p.mark('start',{id:'x'});p.mark('done',{id:'x'});setTimeout(()=>location.href='/second',700);};`);
- const pack=await runPack(c,livesay);assert.equal(pack.rows[0].status,'verified');assert.match(pack.rows[0].transcripts.head.join(' '),/Navigation completed/);
+ const pack=await runPack(c,livesay);assert.equal(pack.rows[0].status,'unverified');assert.equal(pack.rows[0].announcement,null);
+});
+
+test('different document origin cannot validate even complete destination answers',()=>{
+ const old=globalThis.window;
+ try {
+ globalThis.window={__livesayProbe:{snapshot:()=>({capturedAt:9000,answers:[{id:'x',endedAt:100,outcome:'done'}]})}};
+ const now=performance.timeOrigin+performance.now();
+ assert.equal(observationComplete({ids:['x'],baselineOrigin:performance.timeOrigin-100,grace:1200,observationStart:now-5000}),false);
+ } finally {globalThis.window=old;}
 });
