@@ -3,9 +3,15 @@ import type pixelmatchFn from "pixelmatch" with { "resolution-mode": "import" };
 import { PNG } from "pngjs";
 import { round } from "./util";
 
-/** The published ESM dependency is bundled as CJS during build for all Node20 releases. */
+/**
+ * pixelmatch 8 is published as ESM only. This package still ships CommonJS, so a
+ * static `import` would force TypeScript (module: node16/nodenext) to reject the
+ * file. Node has supported `require()` of ESM since 20.19/22.12, so we load the
+ * module through `createRequire` — the same call the compiled CommonJS output
+ * would make — and keep the upstream types via a type-only import.
+ */
 const requireFromHere = createRequire(__filename);
-const pixelmatch: typeof pixelmatchFn = requireFromHere("../vendor/pixelmatch.cjs").default;
+const pixelmatch: typeof pixelmatchFn = requireFromHere("pixelmatch").default;
 
 export interface ImageDiffOptions {
   /** pixelmatch colour-distance threshold (0–1). Default 0.1. */
