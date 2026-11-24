@@ -100,7 +100,12 @@ export async function runPack(config, livesay) {
         const report = livesay.audit(snapshot, { profile: 'nvda-like' });
         const item = { binding: { ...binding }, scene: capture.scene, side: capture.side, report };
         captures.set(key(capture), item);
-      } catch { failures.push({ side: capture.side, scene: capture.scene, reason: 'announcement-unverified' }); }
+      } catch {
+        failures.push({ side: capture.side, scene: capture.scene, reason: 'announcement-unverified' });
+        const baseline = baselines.get(key(capture));
+        const origin = await page.evaluate(() => performance.timeOrigin).catch(() => null);
+        if (baseline && origin !== baseline.timeOrigin) throw new Error('Cross-document scene is blocked; no destination screenshot comparison');
+      }
     },
   };
   // Do not inherit an unrelated ambient .proofshot.json.
