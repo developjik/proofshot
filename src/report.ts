@@ -129,8 +129,8 @@ export function buildReportMarkdown(
         lines.push("| Before | After | Diff |");
         lines.push("| --- | --- | --- |");
         lines.push(
-          `| ${imageCell(result.images.before)} | ${imageCell(result.images.after)} | ${imageCell(
-            result.images.diff,
+          `| ${imageCell(result.images.before, "before")} | ${imageCell(result.images.after, "after")} | ${imageCell(
+            result.images.diff, "diff",
           )} |`,
         );
         lines.push("");
@@ -184,8 +184,8 @@ export function buildReportMarkdown(
   return `${lines.join("\n")}\n`;
 }
 
-function imageCell(file: string | undefined): string {
-  return file ? `![${file}](${file})` : "—";
+function imageCell(file: string | undefined, label: string): string {
+  return file ? `![${label}](${file})` : "—";
 }
 
 function statusLabel(status: ComparisonStatus): string {
