@@ -63,3 +63,8 @@ test('route params are normalized before evidence binding',async()=>{
  const c=await fixture(`document.querySelector('#open').onclick=()=>{const p=window.__livesayProbe;p.mark('start',{id:'x'});document.querySelector('#result').textContent='Completed.';p.mark('done',{id:'x'});};`,'/:item');
  const pack=await runPack({...c,params:{item:'example'}},livesay);assert.equal(pack.rows[0].status,'verified');assert.equal(pack.rows[0].visual.route,'/example');
 });
+
+test('each later answer gets its own completion grace',async()=>{
+ const c=await fixture(`document.querySelector('#open').onclick=()=>{const p=window.__livesayProbe;p.mark('start',{id:'first'});p.mark('done',{id:'first'});setTimeout(()=>{p.mark('start',{id:'second'});setTimeout(()=>p.mark('done',{id:'second'}),200);setTimeout(()=>document.querySelector('#result').textContent='Second completed.',1000);},700);};`);
+ const pack=await runPack(c,livesay);assert.equal(pack.rows[0].status,'verified');assert.match(pack.rows[0].transcripts.head.join(' '),/Second completed/);
+});
