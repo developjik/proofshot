@@ -90,3 +90,12 @@ maximum). Thus graceMs controls both observation time and the overall marker
 wait bound. Answers beginning after the quiet observation window are outside
 this bounded sample contract. Use an explicit final SceneSpec wait/expect for
 your app's readiness signal rather than arbitrary long asynchronous work.
+
+Cross-document navigation during a scene or observation is deliberately
+UNVERIFIED: the previous document's probe transcript cannot be recovered and
+might contain an unfinished answer. This example does not join transcripts
+across documents or claim that a completed destination answer proves the prior
+answer ended. SPA state changes without document replacement are supported.
+
+A cross-document scene is also blocked on the visual side: no destination
+loading screenshot is presented as a successful before/after comparison.
