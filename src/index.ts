@@ -11,3 +11,5 @@ export * from "./config";
 export * from "./git";
 
 export * from './axe';
+
+export * from './scenes';
