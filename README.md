@@ -307,7 +307,7 @@ For early Node20 compatibility, build bundles pixelmatch ESM as CJS and includes
 ### Nested React Router JSX
 
 Static literal JSX routes keep their parent URL: a `settings` child of
-`/dashboard` maps to `/dashboard/settings`. Index routes use the parent URL,
+`/dashboard` maps to `/dashboard/settings`. Index routes without a path use the parent URL (an explicit path is preserved),
 and pathless layout routes add no segment. Nested absolute paths must start
 with their parent's path, as React Router requires. Dynamic `path` expressions,
 spread route attributes and malformed Route nesting stop inference with advice
