@@ -1,15 +1,18 @@
 import { mkdtemp, mkdir, readFile, writeFile, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { PNG } from 'pngjs';
 import { describe, expect, it } from 'vitest';
 import { runCompare } from '../src/compare';
 import { normalizeScenes } from '../src/scenes';
 import { runCli } from '../src/cli';
+import { sceneArtifactId } from '../src/util';
 import { renderWorkflowTemplate } from '../src/init';
 
 const scene = { name: 'open modal', route: '/', steps: [{ action: 'click' as const, selector: '#open' }, { action: 'wait' as const, selector: '#modal' }], expect: '#modal' };
 
 describe('scene grammar', () => {
+  it('keeps slash-distinct scene names in separate artifact namespaces', () => { expect(sceneArtifactId('/', 'a//b')).not.toBe(sceneArtifactId('/', 'a/b')); });
   it('validates direct API and JSON shape without accepting executable code', () => {
     expect(normalizeScenes([scene])[0]).toEqual(scene);
     for (const value of [[scene, scene], [{ ...scene, route: 'https://other.test' }], [{ ...scene, steps: [{ action: 'evaluate', value: 'bad' }] }], [{ ...scene, steps: [{ action: 'fill', selector: '#input' }] }], [{ ...scene, steps: [{ action: 'wait', selector: '#x', text: 'x' }] }]]) expect(() => normalizeScenes(value)).toThrow();
@@ -23,19 +26,23 @@ it('captures two-step modal scenes on both sides, preserves routes, and isolates
   const cwd = await mkdtemp(join(tmpdir(), 'proofshot-scenes-'));
   for (const side of ['before', 'after']) {
     await mkdir(join(cwd, side));
-    await writeFile(join(cwd, side, 'index.html'), `<!doctype html><html><head><title>Scenes</title><style>body{font:20px sans-serif;padding:30px}#modal{padding:32px;border:4px solid navy;background:#eef}input,button{font:inherit}</style></head><body><h1>Scene fixture</h1><button id="open" onclick="document.querySelector('#modal').hidden=false">Open modal</button><section id="modal" role="dialog" aria-label="Details" hidden><h2>${side === 'before' ? 'Original modal' : 'Updated modal'}</h2><input id="name" aria-label="Name"><button onclick="document.querySelector('#error').hidden=false">Submit</button><p id="error" hidden>Enter a valid name</p><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'/%3E" ${side === 'before' ? 'alt="sample"' : ''}></section></body></html>`);
+    await writeFile(join(cwd, side, 'index.html'), `<!doctype html><html><head><title>Scenes</title><style>body{font:20px sans-serif;padding:30px}#modal{padding:32px;border:4px solid navy;background:#eef}input,button{font:inherit}</style></head><body><h1>Scene fixture</h1><button hidden>Open modal</button><button id="open" onclick="document.querySelector('#modal').hidden=false;localStorage.setItem('scene-dirty','yes')">Open modal</button><p id="storage-clean" hidden>Clean storage</p><script>if(!localStorage.getItem("scene-dirty"))document.querySelector("#storage-clean").hidden=false;</script><section id="modal" role="dialog" aria-label="Details" hidden><h2>${side === 'before' ? 'Original modal' : 'Updated modal'}</h2><input id="name" aria-label="Name"><button onclick="document.querySelector('#error').hidden=false">Submit</button><p id="error" hidden>Enter a valid name</p><div style="height:900px"></div><img loading="lazy" id="lazy" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='60'%3E%3Crect width='100' height='60' fill='red'/%3E%3C/svg%3E" ${side === 'before' ? 'alt="sample"' : ''}></section></body></html>`);
   }
-  const scenes = [scene, { name: 'form error', route: '/', steps: [{ action: 'click' as const, text: 'Open modal' }, { action: 'fill' as const, selector: '#name', value: 'invalid' }, { action: 'press' as const, selector: '#name', value: 'Tab' }, { action: 'click' as const, text: 'Submit' }], expect: '#error' }, { name: 'blocked', route: '/', steps: [], expect: '#missing' }];
+  const scenes = [scene, { name: 'form error', route: '/', steps: [{ action: 'click' as const, text: 'Open modal' }, { action: 'fill' as const, selector: '#name', value: 'invalid' }, { action: 'press' as const, selector: '#name', value: 'Tab' }, { action: 'click' as const, text: 'Submit' }], expect: '#error' }, { name: 'blocked', route: '/', steps: [], expect: '#missing' }, { name: 'clean storage', route: '/', steps: [], expect: '#storage-clean' }];
   const outDir = join(cwd, 'report');
-  const result = await runCompare({ cwd, base: join(cwd, 'before'), head: join(cwd, 'after'), routes: ['/'], scenes, outDir, viewports: [{ name: 'desktop', width: 1000, height: 760 }], settleMs: 0, failOn: ['error'] });
+  const result = await runCompare({ cwd, base: join(cwd, 'before'), head: join(cwd, 'after'), routes: ['/'], scenes, outDir, viewports: [{ name: 'desktop', width: 1000, height: 760 }], settleMs: 0, threshold: 0.001, failOn: ['error'] });
   expect(result.exitCode).toBe(1);
-  expect(result.results).toHaveLength(4);
+  expect(result.results).toHaveLength(5);
   expect(result.results.find(item => !item.scene)?.status).toBe('unchanged');
   const modal = result.results.find(item => item.scene === 'open modal')!;
   expect(modal.status).toBe('changed');
   expect(modal.a11y?.regressions.some(issue => issue.rule === 'img-alt')).toBe(true);
   expect(result.results.find(item => item.scene === 'form error')?.images.after).toBeTruthy();
   expect(result.results.find(item => item.scene === 'blocked')?.blocked).toBe(true);
+  expect(result.results.find(item => item.scene === 'clean storage')?.status).not.toBe('error');
+  const image = PNG.sync.read(await readFile(join(outDir, modal.images.after!)));
+  let red = 0; for (let i = 0; i < image.data.length; i += 4) if (image.data[i]! > 240 && image.data[i+1]! < 20 && image.data[i+2]! < 20) red++;
+  expect(red).toBeGreaterThan(5000);
   const images = result.results.flatMap(item => Object.values(item.images).filter(Boolean));
   expect(new Set(images).size).toBe(images.length);
   const report = await readFile(result.reportPath, 'utf8');
@@ -48,5 +55,15 @@ it('captures two-step modal scenes on both sides, preserves routes, and isolates
   await writeFile(join(cwd, '.proofshot.json'), JSON.stringify({ routes: ['/'], scenes }));
   const lines: string[] = [];
   expect(await runCli(['routes', '--files', 'src/App.tsx', '--json'], { cwd, stdout: line => lines.push(line) })).toBe(0);
-  expect(JSON.parse(lines.join('')).scenes).toHaveLength(3);
+  expect(JSON.parse(lines.join('')).scenes).toHaveLength(4);
 }, 90000);
+
+it('uses one normalized identity after dynamic params end with a slash', async () => {
+  const cwd = await mkdtemp(join(tmpdir(), 'proofshot-scenes-params-'));
+  await mkdir(join(cwd, 'site', 'item', 'one'), { recursive: true });
+  await writeFile(join(cwd, 'site', 'item', 'one', 'index.html'), '<h1 id="ready">Param scene</h1>');
+  await writeFile(join(cwd, '.proofshot.json'), JSON.stringify({ routes: ['/item/:id'], params: { id: 'one/' }, scenes: [{ name: 'param', route: '/item/:id', steps: [], expect: '#ready' }] }));
+  const result = await runCompare({ cwd, base: join(cwd, 'site'), head: join(cwd, 'site'), viewports: [{ name: 'desktop', width: 700, height: 500 }], settleMs: 0 });
+  expect(result.results).toHaveLength(2);
+  expect(result.results.find(item => item.scene)?.status).toBe('unchanged');
+}, 30000);
