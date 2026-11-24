@@ -19,7 +19,7 @@ export function stripExt(name: string): string {
 /** A case-insensitive key used to match `Dashboard.tsx` with `<Dashboard />`. */
 export function componentKey(value: string): string {
   return stripExt(value)
-    .replace(/[^a-zA-Z0-9]/g, "")
+    .replace(/[^\p{L}\p{N}]/gu, "")
     .toLowerCase();
 }
 
@@ -111,4 +111,11 @@ export function isUrl(target: string): boolean {
 /** Scene identity hashes raw structured data, never path-normalized user names. */
 export function sceneArtifactId(route: string, name: string): string {
   return `scene-${createHash("sha256").update(JSON.stringify([normalizeRoute(route), name])).digest("hex")}`;
+}
+
+/** Browser-equivalent local route identity, without decoding encoded separators. */
+export function routeIdentity(route: string, staticFilename = false): string {
+  const url = new URL(normalizeRoute(route), 'http://proofshot.invalid');
+  if (staticFilename) url.pathname = url.pathname.replace(/%[0-9a-f]{2}/gi, escape => escape.toUpperCase());
+  return url.href;
 }

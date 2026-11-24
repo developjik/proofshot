@@ -334,3 +334,11 @@ An opt-in local [livesay evidence-pack example](examples/livesay-pack/README.md)
 uses the existing scene grammar to bind screenshots, DOM checks and simulated
 announcement changes to one base/head pair. It generates proposed comment
 Markdown only, with explicit unverified collection states.
+
+### Git path inference API
+
+When passing Git's slash-separated paths directly to `inferRoutes`, use
+`inferRoutes(changed.files, { gitPaths: true })`, where `changed` is the result
+of `changedFiles(...)`. CLI and compare set this automatically. This avoids
+interpreting a literal POSIX backslash as a Windows directory separator.
+Filename decoding supports valid UTF-8 names, not arbitrary non-UTF-8 bytes.

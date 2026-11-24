@@ -1,3 +1,4 @@
+import { routeIdentity } from './util';
 import { computeAxeDelta } from './axe';
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
@@ -77,7 +78,7 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
   const outDir = resolve(cwd, options.outDir ?? config.outDir ?? "proofshot-out");
   const collectA11y = options.collectA11y ?? config.a11y ?? true;
 
-  const { routes, routesSource } = resolveRoutes({
+  const { routes, routesSource, staticRoutes } = resolveRoutes({
     cwd,
     explicit: options.routes,
     config,
@@ -94,7 +95,7 @@ export async function runCompare(options: CompareOptions = {}): Promise<CompareO
     );
   }
 
-  const scenes = normalizeScenes(options.scenes ?? config.scenes ?? []).map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => routes.includes(scene.route));
+  const scenes = normalizeScenes(options.scenes ?? config.scenes ?? []).map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => routes.some(route => routeIdentity(route, staticRoutes.includes(route)) === routeIdentity(scene.route, staticRoutes.includes(route))));
 
   await mkdir(outDir, { recursive: true });
 
@@ -217,7 +218,7 @@ function resolveRoutes(input: {
   baseRef?: string;
   headRef?: string;
   notes: string[];
-}): { routes: string[]; routesSource: string } {
+}): { routes: string[]; routesSource: string; staticRoutes: string[] } {
   let candidates;
   let source: string;
   const params = input.config.params;
@@ -242,6 +243,7 @@ function resolveRoutes(input: {
     if (changed.warning) input.notes.push(changed.warning);
     const routerRoutes = discoverRouterRoutes(input.cwd);
     candidates = inferRoutes(changed.files, {
+      gitPaths: true,
       config: input.config,
       routerRoutes,
       nextProject: detectNextProject(input.cwd),
@@ -263,7 +265,7 @@ function resolveRoutes(input: {
   });
 
   const unique = uniqueBy(resolved, (candidate) => candidate.route);
-  return { routes: unique.map((candidate) => candidate.route), routesSource: source };
+  return { routes: unique.map((candidate) => candidate.route), routesSource: source, staticRoutes: unique.filter(candidate => candidate.framework === "static").map(candidate => candidate.route) };
 }
 
 async function comparePair(input: {

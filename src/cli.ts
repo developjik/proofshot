@@ -6,7 +6,7 @@ import { runCompare, type FailOn } from "./compare";
 import { changedFiles } from "./git";
 import { runInit, WORKFLOW_PATH } from "./init";
 import { detectNextProject, discoverRouterRoutes, inferRoutes } from "./routes";
-import { normalizeRoute } from './util';
+import { normalizeRoute, routeIdentity } from './util';
 import type { ViewportSpec } from "./types";
 
 export interface CliContext {
@@ -235,13 +235,14 @@ async function commandRoutes(
     ? []
     : discoverRouterRoutes(ctx.cwd);
   const candidates = inferRoutes(diff.files, {
+    gitPaths: !explicitFiles,
     config,
     routerRoutes,
     nextProject: detectNextProject(ctx.cwd),
   });
 
   if (parsed.flags.has("json")) {
-    const scenes = config.scenes?.map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => candidates.some(candidate => normalizeRoute(applyRouteParams(candidate.route, config.params).route) === scene.route));
+    const scenes = config.scenes?.map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => candidates.some(candidate => routeIdentity(applyRouteParams(candidate.route, config.params).route, candidate.framework === "static") === routeIdentity(scene.route, candidate.framework === "static")));
     ctx.out(
       JSON.stringify(
         { range: diff.range, files: diff.files, routes: candidates, ...(scenes?.length ? { scenes } : {}) },
@@ -273,11 +274,11 @@ async function commandRoutes(
   );
   for (const candidate of candidates) {
     ctx.out(
-      `${candidate.route.padEnd(width)}  ${candidate.framework.padEnd(frameworkWidth)}  ${candidate.source}`,
+      `${terminalSafe(candidate.route).padEnd(width)}  ${candidate.framework.padEnd(frameworkWidth)}  ${terminalSafe(candidate.source)}`,
     );
   }
   if (config.scenes?.length) {
-    for (const scene of config.scenes.map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => candidates.some(candidate => normalizeRoute(applyRouteParams(candidate.route, config.params).route) === scene.route))) ctx.out(`scene: ${scene.name} (${scene.route})`);
+    for (const scene of config.scenes.map(scene => ({ ...scene, route: normalizeRoute(applyRouteParams(scene.route, config.params).route) })).filter(scene => candidates.some(candidate => routeIdentity(applyRouteParams(candidate.route, config.params).route, candidate.framework === "static") === routeIdentity(scene.route, candidate.framework === "static")))) ctx.out(`scene: ${scene.name} (${scene.route})`);
   }
   return 0;
 }
@@ -470,4 +471,9 @@ export function resolveViewports(names: string[]): ViewportSpec[] {
   const specs = parseViewports(names.join(","));
   if (!specs) throw new Error("no viewports given");
   return specs;
+}
+
+/** Keep untrusted filenames from emitting terminal control sequences. JSON mode stays lossless. */
+function terminalSafe(value: string): string {
+  return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4,'0')}`);
 }
